@@ -5,6 +5,7 @@ import { settings } from "../../state";
 import { h, LABEL } from "../dom";
 import { exampleRow, jpText, play, slowButton, speakButton } from "../japanese";
 import { kanaCell } from "../kana";
+import { starButton } from "../star";
 import { dialogueStep } from "./dialogue";
 
 export interface StepView {
@@ -81,7 +82,7 @@ function wordStep(word: Word, n: number, count: number): StepView {
         // Past ~7 characters the big size would wrap mid-word on a phone.
         jpText(word.jp, plain(word.jp).length > 7 ? "lg" : "xl"),
         h("p", { class: "mt-4 text-xl font-semibold" }, word.zh),
-        h("div", { class: "mt-6 flex items-center justify-center gap-3" }, speaker, slowButton(word.jp)),
+        h("div", { class: "mt-6 flex items-center justify-center gap-3" }, speaker, slowButton(word.jp), starButton(word.jp)),
       ),
       word.note &&
         h(

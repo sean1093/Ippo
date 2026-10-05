@@ -53,7 +53,7 @@ src/
 
 ### 新增頁面或分頁
 - 頁面：在 `src/main.ts` 的 `PAGES` 加一筆。網址是 `#/<名稱>/<參數…>`；有 `tab` 的頁面會套用底部分頁列。
-- 分頁：在 `src/ui/layout.ts` 的 `TABS` 加一筆，並擴充 `Tab` 型別。
+- 分頁：在 `src/ui/layout.ts` 的 `TABS` 加一筆，並擴充 `Tab` 型別。同一個分頁可以有好幾個頁面（「我的」底下有 `#/me`、`#/phrasebook`、`#/settings`），分頁列會一起亮起來。
 
 ### 新增要保存的資料
 用 `src/lib/store.ts` 的 `defineStore(name, version, parse)`：
@@ -93,7 +93,7 @@ src/learn/
 - **卡片 id 就是日文標記本身**：同一句話在課程中出現幾次都是同一張卡。修改句子文字等於換一張新卡；舊的紀錄還留在儲存裡，但到期數、複習與統計都只看 `CARDS` 裡還存在的卡片，所以不會卡住。
 - **哪些內容會進複習**：`lessonCards()` 決定，加上那一課第一次用到的假名（`lessonCardIds()`）。發音課的例句只是示範聲音，用 `Lesson.review: "words"` 讓那一課只有單字進複習。
 - **題型隨熟悉度變難**：`level` 0 認得（看日文選意思）→ 1 聽懂（聽音選意思）→ 2 以上說出來（看中文說日文、自評）。答對且距離上次至少 12 小時才升一級（剛做完又重考不算），差一點不變，不會降兩級。課程結束時沒被考到的內容以 level 0 加入。只需要聽懂的卡片（別人的台詞、單一假名）停在「聽懂」。
-- **新的卡片種類**：在 `Card.kind` 加一種，`reviewQuestion()` 的 switch 會要求你寫它的出題方式；`source` 標明卡片來自哪一課或哪個來源。
+- **新的卡片種類**：在 `Card.kind` 加一種，`reviewQuestion()` 的 switch 會要求你寫它的出題方式；`source` 標明卡片來自哪一課或哪個來源。課程以外的來源目前有 `"self"`：使用者自我介紹的五句話，由 `setProfileCards()` 放進 `CARDS`（`src/learn/profile.ts` 的 `selfIntro()` 產生），改了個人資料就換成新的句子，舊的像被改寫的課程內容一樣被忽略。
 - **作答怎麼進排程**：任何題目只要帶 `card`，`runDrill` 的 `onFirstAnswer` 會把第一次作答的結果交給 `memory.answer()`。新題型想計入複習，只要在題目上填 `card`。
 - **成效指標** `computeStats()`：連續學習天數、預估記得的單字（最近一次答錯的不算）、說得出口的句子與說法（最近一次「說說看」）、隔 3 天以上的複習答對率（作答紀錄只保留 30 天）。
 
@@ -127,6 +127,16 @@ src/ui/pairs.ts       聽辨特訓（#/pairs）＋一輪 12 題（#/pairs-quiz/<
 - **聽辨特訓**：`trials()` 用注入的亂數產生一輪題目，每組對立詞出現次數平均、左右兩邊各一半，語速與音高每題隨機。聲音每題從 `varietyVoices()` 隨機挑一個——這是高變異語音訓練（HVPT）的精神，但多數裝置（例如 iPhone）只有一個可用的日文語音，那時真正變化的只有語速與音高，文案也只能這樣寫。
 - 重音類別的詞寫成漢字（橋／箸、雨／飴），語音引擎才唸得出高低差；而且只挑單獨唸就聽得出差別的詞（頭高 vs 其他），尾高與平板的差別要接助詞才聽得到，不適合這個練習。其他類別用該詞平常的寫法。
 - 這兩個練習不走 `runDrill`：聽辨是二選一，答錯再出一次只是猜，所以一題只問一次，正確率直接記進 `ippo.pairs`。
+## 個人資料與旅行小抄
+
+- `src/learn/profile.ts`：姓氏、城市、職業的候選清單與 `selfIntro(profile)`（純函式，回傳五句日文＋中文）。資料存在 `ippo.profile`；名字只收假名，`kanaName()` 會統一轉成片假名。城市讀音照日本的習慣：大多寫漢字加音讀（台中＝たいちゅう、高雄＝たかお），台北與基隆直接寫片假名 タイペイ／キールン——台北跟第 5 課的句子用同一種寫法，才不會多出一張一模一樣的卡片。
+- `src/learn/phrasebook.ts`：`ippo.phrasebook` 存的是卡片 id 的順序清單，句子本身一律從 `CARDS` 取，所以不會和課程內容脫節。畫面上的 ☆ 是 `src/ui/star.ts` 的 `starButton(id)`；不是卡片的內容（發音課的示範例句）不會出現星星。
+
+## 離線使用（PWA）
+
+- `public/manifest.webmanifest` 與 `public/sw.js` 直接複製到 `dist/`，網址全部相對，所以在 GitHub Pages 的子路徑也能用。
+- Service worker 只在 `import.meta.env.PROD` 時由 `src/main.ts` 註冊：安裝時快取 `./`、`./index.html` 和 index 裡面的 `./assets/…`；開頁面走「先連網、連不到就用快取」（只有正常回應才會覆蓋離線用的首頁），其他同源 GET 走「先快取」。改版時把 `sw.js` 裡的 `CACHE` 加一號，activate 時會刪掉其他 `ippo-` 開頭的快取——快取空間是整個網域共用的，同一個 GitHub 帳號的其他專案不能掃到。
+- 圖示（`icon-192.png`、`icon-512.png`、`icon-maskable-512.png`、`apple-touch-icon.png`）是用無頭瀏覽器把 `public/favicon.svg` 截圖產生的，換圖示時重做一次即可。
 
 ## 測試
 

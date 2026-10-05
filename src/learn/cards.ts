@@ -5,6 +5,7 @@ import { FALSE_FRIENDS } from "../content/kanji";
 import type { Jp, Lesson } from "../content/types";
 import { plain } from "../lib/jp";
 import { kanaToRomaji, toKatakana } from "../lib/romaji";
+import { type Profile, selfIntro } from "./profile";
 
 /** One thing to remember, reviewed on its own schedule. `kind` decides how review asks it. */
 export interface Card {
@@ -64,24 +65,43 @@ export const KANJI_CARDS: Card[] = FALSE_FRIENDS.map((entry) => ({
   source: "kanji",
 }));
 
+/** The source of the lines the learner wrote about themselves, rather than a lesson id. */
+export const SELF = "self";
+
+const catalog = new Map<string, Card>();
+for (const card of [...LESSONS.flatMap(lessonCards), ...KANJI_CARDS]) if (!catalog.has(card.id)) catalog.set(card.id, card);
+for (const kana of CHART_KANA) {
+  catalog.set(kanaCardId(kana), {
+    id: kanaCardId(kana),
+    jp: kana,
+    zh: kanaToRomaji(kana),
+    kind: "kana",
+    use: "hear",
+    source: "kana",
+  });
+}
+
 /**
  * Every card in the course by id, in teaching order; a card in several lessons
  * belongs to the first, and the kanji corner's false friends follow. Every kana
  * of the chart is a card of its own, so reading it is practised and tracked
- * like anything else — wherever the learner meets it, in a lesson or on the chart.
+ * like anything else — wherever the learner meets it, in a lesson or on the
+ * chart. The learner's own self-introduction joins it through `setProfileCards`.
  */
-export const CARDS: ReadonlyMap<string, Card> = (() => {
-  const all = new Map<string, Card>();
-  for (const card of [...LESSONS.flatMap(lessonCards), ...KANJI_CARDS]) if (!all.has(card.id)) all.set(card.id, card);
-  for (const kana of CHART_KANA) {
-    all.set(kanaCardId(kana), {
-      id: kanaCardId(kana),
-      jp: kana,
-      zh: kanaToRomaji(kana),
-      kind: "kana",
-      use: "hear",
-      source: "kana",
-    });
+export const CARDS: ReadonlyMap<string, Card> = catalog;
+
+/**
+ * Puts the learner's self-introduction in the catalogue, replacing the lines
+ * of any earlier profile — those are then ignored everywhere, exactly like
+ * course content that has been rewritten. Lines the course already teaches
+ * (「はじめまして。」…) stay with their lesson.
+ */
+export function setProfileCards(profile: Profile | null): void {
+  for (const [id, card] of catalog) if (card.source === SELF) catalog.delete(id);
+  if (!profile) return;
+  for (const line of selfIntro(profile)) {
+    if (!catalog.has(line.jp)) {
+      catalog.set(line.jp, { id: line.jp, jp: line.jp, zh: line.zh, kind: "sentence", use: "say", source: SELF });
+    }
   }
-  return all;
-})();
+}
