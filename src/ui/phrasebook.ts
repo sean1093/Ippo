@@ -3,7 +3,7 @@ import { type Card, CARDS, SELF } from "../learn/cards";
 import { STARTER_IDS, starredIds } from "../learn/phrasebook";
 import { plain } from "../lib/jp";
 import { BUTTON, fill, h, icon, LABEL } from "./dom";
-import { hush, jpText, play, speakButton } from "./japanese";
+import { hush, jpText, speakButton } from "./japanese";
 import { starButton } from "./star";
 
 /**
@@ -133,7 +133,19 @@ function showToClerk(card: Card): void {
     window.removeEventListener("hashchange", dismiss);
   }
   function onKey(event: KeyboardEvent): void {
-    if (event.key === "Escape") dismiss();
+    if (event.key === "Escape") {
+      dismiss();
+      return;
+    }
+    if (event.key !== "Tab") return;
+    // The page underneath is only covered, so its buttons would still take the
+    // focus ring while aria-modal tells a screen reader they are not there.
+    const stops = [...overlay.querySelectorAll("button")];
+    const edge = event.shiftKey ? stops[0] : stops.at(-1);
+    if (document.activeElement === edge || !overlay.contains(document.activeElement)) {
+      event.preventDefault();
+      (event.shiftKey ? stops.at(-1) : stops[0])?.focus();
+    }
   }
 
   close.addEventListener("click", dismiss);

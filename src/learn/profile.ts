@@ -18,16 +18,18 @@ export interface Profile {
 }
 
 /**
- * Taiwanese places with the reading Japanese people actually use. Most
- * Taiwanese place names are read with the Japanese on'yomi of their kanji;
- * 台北 is usually タイペイ (as taught in 第 5 課), 高雄 keeps たかお and 基隆
- * キールン. Readings follow the Japanese Wikipedia entry for each city.
+ * Taiwanese places with the reading Japanese people actually use: the Japanese
+ * on'yomi of the kanji, which is the rule for Taiwanese place names (readings
+ * follow each city's Japanese Wikipedia entry), except where a kana spelling
+ * is what Japanese write. 台北 is bare タイペイ — the spelling 第 5 課 already
+ * teaches, so a learner from 台北 gets that one card instead of a twin — and
+ * 基隆 is キールン, a reading no speech engine could derive from the kanji.
  */
 export const CITIES: readonly Example[] = [
-  { jp: "{台湾|たいわん}", zh: "台灣（不說城市）" },
-  { jp: "{台北|タイペイ}", zh: "台北" },
+  { jp: "{台湾|たいわん}", zh: "台灣" },
+  { jp: "タイペイ", zh: "台北" },
   { jp: "{新北|しんほく}", zh: "新北" },
-  { jp: "{基隆|キールン}", zh: "基隆" },
+  { jp: "キールン", zh: "基隆" },
   { jp: "{桃園|とうえん}", zh: "桃園" },
   { jp: "{新竹|しんちく}", zh: "新竹" },
   { jp: "{苗栗|びょうりつ}", zh: "苗栗" },

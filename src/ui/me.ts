@@ -1,12 +1,12 @@
 import type { Example } from "../content/types";
-import { setProfileCards } from "../learn/cards";
+import { CARDS, setProfileCards } from "../learn/cards";
 import { answer, introduce, studied } from "../learn/memory";
 import { starredIds } from "../learn/phrasebook";
 import { CITIES, currentProfile, JOBS, kanaName, type Profile, saveProfile, selfIntro, SURNAMES } from "../learn/profile";
 import type { Question } from "../quiz/questions";
 import { BUTTON, fill, h, icon, LABEL } from "./dom";
 import { runDrill } from "./drill";
-import { hush, jpText, play, playSequence, speakButton } from "./japanese";
+import { hush, jpText, playSequence, speakButton } from "./japanese";
 import { focusLayout, resultView } from "./layout";
 
 /** Marks a hometown the learner types in themselves. */
@@ -19,7 +19,9 @@ export function renderMe(main: HTMLElement, editing: boolean): void {
     renderForm(main, profile);
     return;
   }
-  const starred = starredIds().length;
+  // Resolved the way the phrasebook page resolves them: a starred sentence the
+  // course has since rewritten is no longer there to show.
+  const starred = starredIds().filter((id) => CARDS.has(id)).length;
   fill(
     main,
     h("h1", { class: "pt-3 text-2xl font-bold" }, "我的"),
@@ -111,13 +113,14 @@ function linkRow(title: string, hint: string, href: string, glyph: "pin" | "slid
 function renderForm(main: HTMLElement, profile: Profile | null): void {
   const name = h("input", {
     type: "text",
-    inputmode: "kana",
+    inputmode: "text",
     autocomplete: "off",
     spellcheck: "false",
     lang: "ja",
     value: profile?.name ?? "",
     placeholder: "リン",
     class: "mt-2 w-full rounded-xl border border-hair bg-paper px-4 py-3 text-lg outline-none focus:border-ai",
+    "aria-label": "名字",
     "aria-describedby": "name-help",
   });
 
@@ -130,7 +133,7 @@ function renderForm(main: HTMLElement, profile: Profile | null): void {
   );
   const fromName = h("input", {
     type: "text",
-    inputmode: "kana",
+    inputmode: "text",
     autocomplete: "off",
     lang: "ja",
     value: custom,

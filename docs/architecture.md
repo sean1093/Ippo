@@ -129,13 +129,13 @@ src/ui/pairs.ts       聽辨特訓（#/pairs）＋一輪 12 題（#/pairs-quiz/<
 - 這兩個練習不走 `runDrill`：聽辨是二選一，答錯再出一次只是猜，所以一題只問一次，正確率直接記進 `ippo.pairs`。
 ## 個人資料與旅行小抄
 
-- `src/learn/profile.ts`：姓氏、城市、職業的候選清單與 `selfIntro(profile)`（純函式，回傳五句日文＋中文）。資料存在 `ippo.profile`；名字只收假名，`kanaName()` 會統一轉成片假名。城市讀音照日本的習慣（多數是漢字音讀，台北＝タイペイ、高雄＝たかお、基隆＝キールン）。
+- `src/learn/profile.ts`：姓氏、城市、職業的候選清單與 `selfIntro(profile)`（純函式，回傳五句日文＋中文）。資料存在 `ippo.profile`；名字只收假名，`kanaName()` 會統一轉成片假名。城市讀音照日本的習慣：大多寫漢字加音讀（台中＝たいちゅう、高雄＝たかお），台北與基隆直接寫片假名 タイペイ／キールン——台北跟第 5 課的句子用同一種寫法，才不會多出一張一模一樣的卡片。
 - `src/learn/phrasebook.ts`：`ippo.phrasebook` 存的是卡片 id 的順序清單，句子本身一律從 `CARDS` 取，所以不會和課程內容脫節。畫面上的 ☆ 是 `src/ui/star.ts` 的 `starButton(id)`；不是卡片的內容（發音課的示範例句）不會出現星星。
 
 ## 離線使用（PWA）
 
 - `public/manifest.webmanifest` 與 `public/sw.js` 直接複製到 `dist/`，網址全部相對，所以在 GitHub Pages 的子路徑也能用。
-- Service worker 只在 `import.meta.env.PROD` 時由 `src/main.ts` 註冊：安裝時快取 `./`、`./index.html` 和 index 裡面的 `./assets/…`；開頁面走「先連網、連不到就用快取」，其他同源 GET 走「先快取」。改版時把 `sw.js` 裡的 `CACHE` 加一號，舊的快取會在 activate 時刪掉。
+- Service worker 只在 `import.meta.env.PROD` 時由 `src/main.ts` 註冊：安裝時快取 `./`、`./index.html` 和 index 裡面的 `./assets/…`；開頁面走「先連網、連不到就用快取」（只有正常回應才會覆蓋離線用的首頁），其他同源 GET 走「先快取」。改版時把 `sw.js` 裡的 `CACHE` 加一號，activate 時會刪掉其他 `ippo-` 開頭的快取——快取空間是整個網域共用的，同一個 GitHub 帳號的其他專案不能掃到。
 - 圖示（`icon-192.png`、`icon-512.png`、`icon-maskable-512.png`、`apple-touch-icon.png`）是用無頭瀏覽器把 `public/favicon.svg` 截圖產生的，換圖示時重做一次即可。
 
 ## 測試

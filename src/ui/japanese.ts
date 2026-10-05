@@ -148,7 +148,9 @@ export function exampleRow(markup: Jp, zh: string): HTMLElement {
     "div",
     { class: "flex items-start gap-2 py-3 pl-4 pr-1" },
     speakButton(markup, "sm"),
-    h("div", { class: "min-w-0 flex-1 pt-0.5" }, jpText(markup), h("p", { class: "mt-0.5 text-sm text-ink/75" }, zh)),
+    // pr-3 on the text, not the row: the star hangs in the row's own padding,
+    // so a sentence the course does not teach as a card keeps the same margin.
+    h("div", { class: "min-w-0 flex-1 pr-3 pt-0.5" }, jpText(markup), h("p", { class: "mt-0.5 text-sm text-ink/75" }, zh)),
     starButton(markup),
   );
 }

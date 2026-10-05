@@ -30,7 +30,9 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(
     caches
       .keys()
-      .then((keys) => Promise.all(keys.filter((key) => key !== CACHE).map((key) => caches.delete(key))))
+      // Cache storage is per origin, and a GitHub Pages account serves every
+      // project from one: only ever drop Ippo's own caches.
+      .then((keys) => Promise.all(keys.filter((key) => key.startsWith("ippo-") && key !== CACHE).map((key) => caches.delete(key))))
       .then(() => self.clients.claim()),
   );
 });
@@ -45,8 +47,12 @@ self.addEventListener("fetch", (event) => {
 async function navigation(request) {
   try {
     const response = await fetch(request);
-    const cache = await caches.open(CACHE);
-    await cache.put("./index.html", response.clone());
+    // A 404 page or a captive portal's answer must never become the offline
+    // shell, and a cache that refuses the write must not cost a good response.
+    if (response.ok && response.type === "basic") {
+      const cache = await caches.open(CACHE);
+      await cache.put("./index.html", response.clone()).catch(() => {});
+    }
     return response;
   } catch {
     const cached = (await caches.match("./index.html")) ?? (await caches.match("./"));

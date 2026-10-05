@@ -4,7 +4,7 @@ import { CARDS, SELF, setProfileCards } from "../src/learn/cards";
 import { parsePhrasebook, STARTER_IDS } from "../src/learn/phrasebook";
 import { CITIES, JOBS, kanaName, type Profile, parseProfile, selfIntro, SURNAMES } from "../src/learn/profile";
 
-const LIN: Profile = { name: "リン", from: "{台北|タイペイ}", job: "{会社員|かいしゃいん}" };
+const LIN: Profile = { name: "リン", from: "タイペイ", job: "{会社員|かいしゃいん}" };
 
 describe("selfIntro", () => {
   it("builds speakable Japanese for every curated choice", () => {
@@ -39,6 +39,17 @@ describe("selfIntro", () => {
     const lines = selfIntro(LIN);
     expect(lines[2]?.zh).toBe("我從台北來。");
     expect(lines[3]?.zh).toBe("我是上班族。");
+  });
+
+  it("writes every curated hometown the way the course already teaches it", () => {
+    // A line the course teaches must come out as that card, not a twin with
+    // the same reading and gloss that review would then ask twice.
+    const twins = CITIES.flatMap((city) => {
+      const line = selfIntro({ ...LIN, from: city.jp })[2]!;
+      const same = [...CARDS.values()].find((card) => card.id !== line.jp && card.zh === line.zh);
+      return same ? [`${line.jp} duplicates ${same.id}`] : [];
+    });
+    expect(twins).toEqual([]);
   });
 });
 
