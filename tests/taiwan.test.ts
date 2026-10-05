@@ -103,6 +103,8 @@ describe("trials", () => {
         times.set(key, (times.get(key) ?? 0) + 1);
       }
       const least = Math.floor(SESSION_TRIALS / pairs.length);
+      // Without this, leaving a pair out entirely would still satisfy the bounds below.
+      expect(times.size).toBe(pairs.length);
       for (const count of times.values()) expect(count).toBeGreaterThanOrEqual(least);
       for (const count of times.values()) expect(count).toBeLessThanOrEqual(least + 1);
       // Answering "the left one" every time has to score 50%, not more.

@@ -63,7 +63,7 @@ function drillsCard(): HTMLElement {
     h(
       "div",
       { class: "mt-2 flex flex-col gap-3" },
-      link("#/pairs", "聽辨特訓", "長音、促音、清濁音…用不同的聲音練到聽得出差別。"),
+      link("#/pairs", "聽辨特訓", "長音、促音、清濁音…最小對立詞一題一題練到聽得出差別。"),
       link("#/kanji", "漢字小教室", "勉強、手紙、大丈夫：看得懂漢字，更要知道它在日文是什麼意思。"),
     ),
   );

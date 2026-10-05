@@ -2,6 +2,7 @@ import { PAIR_CATEGORIES, type PairCategory } from "../content/pairs";
 import { studied } from "../learn/memory";
 import { accuracy, categoryScore, recordPairTrial, SESSION_TRIALS, type Side, type Trial, trials } from "../learn/pairs";
 import { type SpeakOptions, varietyVoices } from "../lib/speech";
+import { settings } from "../state";
 import { BUTTON, fill, h, icon, LABEL } from "./dom";
 import { jpText, play, speakButton } from "./japanese";
 import { focusLayout, resultView } from "./layout";
@@ -14,7 +15,7 @@ export function renderPairs(main: HTMLElement): void {
     h(
       "p",
       { class: "mt-1 text-sm leading-relaxed text-muted" },
-      `華語裡沒有的差別，多聽幾次就會分得出來。每一輪 ${SESSION_TRIALS} 題，每題換一個聲音、換一個速度，聽完選出你聽到的那個詞。`,
+      `華語裡沒有的差別，多聽幾次就會分得出來。每一輪 ${SESSION_TRIALS} 題，每題的語速、聲調都會變，裝置上有多個日文聲音時也會換聲音。聽完選出你聽到的那個詞。`,
     ),
     h("div", { class: "mt-5 flex flex-col gap-3" }, PAIR_CATEGORIES.map(categoryRow)),
   );
@@ -185,5 +186,6 @@ function renderTrial(
     ),
   );
   surface.footer.replaceChildren(h("p", { class: "py-3 text-center text-sm text-muted" }, "聽不清楚可以再點一次喇叭"));
-  void play(target.jp, player, options);
+  // Same rule as every other drill: the learner can switch the automatic playback off and press the speaker.
+  if (settings.autoplay) void play(target.jp, player, options);
 }

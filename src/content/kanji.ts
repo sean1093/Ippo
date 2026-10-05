@@ -90,7 +90,7 @@ export const FALSE_FRIENDS: FalseFriend[] = [
   {
     jp: "{迷惑|めいわく}",
     zh: "困擾、添麻煩",
-    trap: "迷惑、使人著迷",
+    trap: "困惑、搞不清楚",
     example: { jp: "ご{迷惑|めいわく} を おかけして すみません。", zh: "不好意思，給您添麻煩了。" },
   },
   {
@@ -131,7 +131,7 @@ export const FALSE_FRIENDS: FalseFriend[] = [
   },
   {
     jp: "{邪魔|じゃま}",
-    zh: "打擾、礙事",
+    zh: "妨礙、擋到路",
     trap: "邪魔歪道",
     example: { jp: "お{邪魔|じゃま}します。", zh: "打擾了。（進別人家時說）" },
   },
