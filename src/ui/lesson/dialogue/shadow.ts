@@ -80,23 +80,36 @@ export function shadowMode(dialogue: Dialogue): DialogueMode {
     withMicNotice(notice, () => void begin(line));
   }
 
+  /**
+   * `active` is only set once the microphone is granted, so a second tap while
+   * `getUserMedia` is still pending would open a second stream and orphan the
+   * first — holding the microphone until its own time limit.
+   */
+  let starting = false;
+
   async function begin(line: ShadowLine): Promise<void> {
-    await finish();
-    if (left) return;
-    line.message.classList.add("hidden");
-    // Recording the loudspeaker would bury the learner's own voice.
-    hush();
-    const started = await startRecording(() => void finish());
-    if ("error" in started) {
-      say(line, started.error === "denied" ? "沒有麥克風權限，可以先用「原音」跟著唸。" : "這台裝置不能錄音，可以先用「原音」跟著唸。");
-      return;
+    if (starting) return;
+    starting = true;
+    try {
+      await finish();
+      if (left) return;
+      line.message.classList.add("hidden");
+      // Recording the loudspeaker would bury the learner's own voice.
+      hush();
+      const started = await startRecording(() => void finish());
+      if ("error" in started) {
+        say(line, started.error === "denied" ? "沒有麥克風權限，可以先用「原音」跟著唸。" : "這台裝置不能錄音，可以先用「原音」跟著唸。");
+        return;
+      }
+      if (left) {
+        void started.recording.stop();
+        return;
+      }
+      active = { line, recording: started.recording };
+      mark(line, true);
+    } finally {
+      starting = false;
     }
-    if (left) {
-      void started.recording.stop();
-      return;
-    }
-    active = { line, recording: started.recording };
-    mark(line, true);
   }
 
   /** Ends the running recording, if any, and keeps it for playback. */

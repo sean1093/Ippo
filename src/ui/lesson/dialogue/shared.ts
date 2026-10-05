@@ -51,12 +51,8 @@ export function focusRow(rows: readonly Row[], current: number): void {
   rows[current]?.row.scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
 
-/**
- * 「播放全部」 for a list of rows, which stops on a second tap. `onLine` lets a
- * mode react to the line being played (the listening mode reveals nothing, the
- * reading mode only follows along).
- */
-export function playAllButton(rows: readonly Row[], onLine?: (i: number) => void): HTMLButtonElement {
+/** 「播放全部」 for a list of rows, which stops on a second tap. */
+export function playAllButton(rows: readonly Row[]): HTMLButtonElement {
   const label = h("span", null, "播放全部");
   const button = h(
     "button",
@@ -77,10 +73,7 @@ export function playAllButton(rows: readonly Row[], onLine?: (i: number) => void
     label.textContent = "停止";
     await playSequence(
       rows.map((row) => ({ jp: row.line.jp, button: row.button })),
-      (current) => {
-        focusRow(rows, current);
-        onLine?.(current);
-      },
+      (current) => focusRow(rows, current),
     );
     focusRow(rows, -1);
     label.textContent = "播放全部";

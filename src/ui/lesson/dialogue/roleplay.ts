@@ -25,7 +25,7 @@ const EXCUSES: Record<ListenError, string> = {
   "no-speech": "沒聽到聲音，大聲一點再說一次。",
   denied: "沒有麥克風權限，改成自己打分數。",
   unsupported: "這個瀏覽器不能聽寫，改成自己打分數。",
-  network: "連不上語音辨識，改成自己打分數。",
+  network: "連不上語音辨識，等一下再說一次。",
   aborted: "辨識被中斷了，再試一次。",
   other: "語音辨識出了點問題，改成自己打分數。",
 };
@@ -135,7 +135,19 @@ export function roleplayMode(dialogue: Dialogue): DialogueMode {
     );
     fill(stage, cue, feedback, actions);
 
+    /**
+     * This line is over, whatever the microphone is still doing. Without it a
+     * late result would grade the revealed answer — or, after 下一句, land on
+     * the next line and log the previous card a second time.
+     */
+    let settled = false;
+    function stopAttempt(): void {
+      settled = true;
+      stopListening();
+    }
+
     function reveal(then: () => void): void {
+      stopAttempt();
       const speaker = speakButton(line.jp, "md");
       fill(
         feedback,
@@ -166,6 +178,7 @@ export function roleplayMode(dialogue: Dialogue): DialogueMode {
                 type: "button",
                 class: option.class,
                 onclick: () => {
+                  stopAttempt();
                   attempt(line, option.grade);
                   next(line);
                 },
@@ -190,7 +203,19 @@ export function roleplayMode(dialogue: Dialogue): DialogueMode {
       );
       fill(
         actions,
-        h("button", { type: "button", class: BUTTON.primary, onclick: () => next(line) }, "下一句", icon("next")),
+        h(
+          "button",
+          {
+            type: "button",
+            class: BUTTON.primary,
+            onclick: () => {
+              stopAttempt();
+              next(line);
+            },
+          },
+          "下一句",
+          icon("next"),
+        ),
         h(
           "div",
           { class: "grid grid-cols-2 gap-2" },
@@ -202,17 +227,19 @@ export function roleplayMode(dialogue: Dialogue): DialogueMode {
 
     function listen(button: HTMLButtonElement): void {
       const token = run;
+      settled = false;
       button.disabled = true;
       fill(button, icon("mic"), "聽你說…");
       hush();
       void recognize().then((heard) => {
-        if (left || token !== run) return;
+        if (left || settled || token !== run) return;
         if ("error" in heard) {
           if (heard.error === "aborted") {
             ask();
             return;
           }
-          if (heard.error !== "no-speech") micBlocked = true;
+          // "network" is the phone losing signal for one attempt, not a device that cannot listen.
+          if (heard.error !== "no-speech" && heard.error !== "network") micBlocked = true;
           fill(feedback, h("p", { class: "rounded-2xl bg-shu-soft px-4 py-3 text-center text-sm" }, EXCUSES[heard.error]));
           ask(true);
           return;

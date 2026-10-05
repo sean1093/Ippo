@@ -37,8 +37,14 @@ export async function startRecording(onLimit?: () => void): Promise<{ recording:
     return { error: name === "NotAllowedError" || name === "SecurityError" ? "denied" : "other" };
   }
 
-  const mimeType = MIME_TYPES.find((type) => MediaRecorder.isTypeSupported(type));
-  const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+  let recorder: MediaRecorder;
+  try {
+    const mimeType = MIME_TYPES.find((type) => MediaRecorder.isTypeSupported(type));
+    recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined);
+  } catch {
+    for (const track of stream.getTracks()) track.stop();
+    return { error: "other" };
+  }
   const chunks: Blob[] = [];
   const { promise, resolve } = Promise.withResolvers<Blob | null>();
 
@@ -59,7 +65,13 @@ export async function startRecording(onLimit?: () => void): Promise<{ recording:
     onLimit?.();
   }, LIMIT);
 
-  recorder.start();
+  try {
+    recorder.start();
+  } catch {
+    window.clearTimeout(timer);
+    for (const track of stream.getTracks()) track.stop();
+    return { error: "other" };
+  }
   return {
     recording: {
       stop() {

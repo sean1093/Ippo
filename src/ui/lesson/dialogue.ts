@@ -27,6 +27,8 @@ const TAB = "rounded-full px-2 py-2 text-sm font-semibold transition active:scal
 export function dialogueStep(dialogue: Dialogue): StepView {
   const body = h("div", { class: "mt-5" });
   let current: DialogueMode | null = null;
+  /** The mode on screen: tapping its own tab must not throw its recordings or run away. */
+  let shown = -1;
 
   const tabs = MODES.map((mode, i) =>
     h("button", { type: "button", class: TAB, onclick: () => show(i) }, mode.label),
@@ -34,7 +36,8 @@ export function dialogueStep(dialogue: Dialogue): StepView {
 
   function show(i: number): void {
     const mode = MODES[i];
-    if (!mode) return;
+    if (!mode || i === shown) return;
+    shown = i;
     current?.onLeave?.();
     hush();
     tabs.forEach((tab, n) => (tab.className = `${TAB} ${n === i ? "bg-ai text-white shadow-sm" : "text-muted"}`));

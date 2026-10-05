@@ -4,6 +4,8 @@ import { judgeSpeech } from "../src/lib/match";
 const SELF = "{私|わたし} は {学生|がくせい} です。";
 const COFFEE = "コーヒー を ください。";
 const PRICE = "{300円|さんびゃくえん} です。";
+// Lesson 8's phone number, spoken digit by digit; recognition writes it as numerals.
+const PHONE = "ゼロ きゅう いち に の さん よん ご の ろく なな はち です。";
 
 describe("judging what the recogniser heard", () => {
   it("accepts the sentence in kanji or in kana", () => {
@@ -29,6 +31,17 @@ describe("judging what the recogniser heard", () => {
     expect(judgeSpeech(["300円です"], PRICE).score).toBe(1);
     expect(judgeSpeech(["３００円です"], PRICE).score).toBe(1);
     expect(judgeSpeech(["さんびゃくえんです"], PRICE).score).toBe(1);
+  });
+
+  it("accepts a phone number said digit by digit and written as numerals", () => {
+    expect(judgeSpeech(["0912345678です"], PHONE).verdict).toBe("pass");
+    expect(judgeSpeech(["0912-345-678です"], PHONE).verdict).toBe("pass");
+    expect(judgeSpeech(["09 1234 5678 です"], PHONE).verdict).toBe("pass");
+    expect(judgeSpeech(["0987654321です"], PHONE).verdict).not.toBe("pass");
+  });
+
+  it("reads half-width katakana as the same sounds", () => {
+    expect(judgeSpeech(["ｺｰﾋｰをください"], COFFEE).score).toBe(1);
   });
 
   it("calls a near miss close and a different sentence a miss", () => {

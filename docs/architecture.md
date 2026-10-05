@@ -76,7 +76,7 @@ src/
 
 - `src/lib/listen.ts`：一次性的語音辨識（`SpeechRecognition`／`webkitSpeechRecognition`，ja-JP，五個候選，有逾時）。`canRecognize()` 告訴畫面能不能用；開始聽之前一定先停掉朗讀，否則會把自己的聲音聽進去。
 - `src/lib/recorder.ts`：`MediaRecorder` 包裝（Safari 用 audio/mp4、Chrome 用 audio/webm），八秒自動停，結束一定放掉麥克風。
-- `src/lib/match.ts`：`judgeSpeech()` 把辨識結果正規化（去標點與空白、片假名轉平假名、全形轉半形）後，同時跟漢字原文和假名讀音比對，用編輯距離給 pass／close／miss。
+- `src/lib/match.ts`：`judgeSpeech()` 把辨識結果正規化（NFKC 統一全形與半形片假名、片假名轉平假名、去標點與空白）後，跟三種寫法比對——漢字原文、假名讀音，以及電話號碼這種連續唸出的數字轉成阿拉伯數字——用編輯距離給 pass／close／miss。
 
 **隱私**：辨識的聲音會送到瀏覽器廠商（Chrome → Google、Safari → Apple），錄音則完全留在裝置上、離開畫面就 `revokeObjectURL()` 丟掉。第一次用麥克風前會顯示這段說明，看過了記在設定 `micNoticeSeen`。在不方便出聲的場合，`speakOffUntil`（epoch 毫秒）讓學習者把說話練習關一小時，期間所有需要開口的地方改成自評。
 

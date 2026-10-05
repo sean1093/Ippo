@@ -7,21 +7,23 @@ import { plain, readings } from "./jp";
  * Recognition returns ordinary Japanese writing, so the same sentence comes
  * back as kanji on one phone and as kana on another, with or without
  * punctuation, and numbers as digits. Everything that does not change the
- * sounds is normalised away, and the result is compared against both spellings
- * of the target — the kanji text and its kana reading.
+ * sounds is normalised away, and the result is compared against three
+ * spellings of the target: the kanji text, its kana reading, and — for strings
+ * of spoken digits such as a phone number — that reading in numerals.
  */
 
-/** Written but not heard: spaces and sentence punctuation, once the full-width ones are half-width. */
+/** Written but not heard: spaces and sentence punctuation, once NFKC has made the full-width ones ASCII. */
 const SILENT = /[\s!-/:-@[-`{-~、。・「」『』〜…‥]/g;
-/** Full-width ASCII, as recognition writes digits and letters: ３００ → 300. */
-const FULL_WIDTH = /[！-～]/g;
 /** Katakana folds onto hiragana so コーヒー and こーひー are the same sounds. */
 const KATAKANA = /[ァ-ヶ]/g;
 
-/** Same sounds → same string: half-width, lower case, hiragana, no punctuation. */
+/**
+ * Same sounds → same string. NFKC does the full-width ASCII (３００ → 300),
+ * half-width katakana (ｺｰﾋｰ → コーヒー) and decomposed voiced kana at once.
+ */
 function normalize(text: string): string {
   return text
-    .replace(FULL_WIDTH, (char) => String.fromCharCode(char.charCodeAt(0) - 0xfee0))
+    .normalize("NFKC")
     .toLowerCase()
     .replace(KATAKANA, (char) => String.fromCharCode(char.charCodeAt(0) - 0x60))
     .replace(SILENT, "");
@@ -63,9 +65,50 @@ export interface Judgement {
 const PASS = 0.75;
 const CLOSE = 0.5;
 
+/** Spoken digits, as a phone number is read out: ぜろ きゅう いち に → 0912. */
+const DIGITS: Record<string, string> = {
+  ぜろ: "0",
+  れい: "0",
+  まる: "0",
+  いち: "1",
+  に: "2",
+  さん: "3",
+  よん: "4",
+  ご: "5",
+  ろく: "6",
+  なな: "7",
+  はち: "8",
+  きゅう: "9",
+};
+
+/**
+ * The reading with runs of three or more spoken digits written as numerals,
+ * which is how recognition writes a phone number. Shorter runs are left alone:
+ * に and ご are ordinary words far more often than they are digits.
+ */
+function digitForm(words: readonly string[]): string {
+  const out: string[] = [];
+  for (let i = 0; i < words.length; ) {
+    let end = i;
+    while (end < words.length && (DIGITS[words[end]!] !== undefined || words[end] === "の")) end += 1;
+    const run = words.slice(i, end).filter((word) => DIGITS[word] !== undefined);
+    if (run.length >= 3) {
+      out.push(run.map((word) => DIGITS[word]!).join(""));
+      i = end;
+    } else {
+      out.push(words[i]!);
+      i += 1;
+    }
+  }
+  return out.join("");
+}
+
 /** Judges every alternative the recogniser offered against `target`, keeping the best. */
 export function judgeSpeech(alternatives: readonly string[], target: Jp): Judgement {
-  const wanted = [normalize(plain(target)), normalize(readings(target).join(""))];
+  const words = readings(target).map(normalize);
+  const wanted = [normalize(plain(target)), words.join("")];
+  const digits = digitForm(words);
+  if (digits !== wanted[1]) wanted.push(digits);
   let score = 0;
   for (const alternative of alternatives) {
     const heard = normalize(alternative);

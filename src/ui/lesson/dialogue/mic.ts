@@ -48,6 +48,8 @@ export function withMicNotice(host: HTMLElement, action: () => void): void {
       ),
     ),
   );
+  // The notice sits above the lines; the tap that asked for it may be a screen away.
+  host.scrollIntoView({ block: "nearest", behavior: "smooth" });
 }
 
 /**
