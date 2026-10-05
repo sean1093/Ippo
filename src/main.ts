@@ -95,7 +95,8 @@ for (const lesson of LESSONS) {
 // link (a shared lesson, a bookmark) is never hijacked, and neither is a
 // learner who already has progress but somehow no `welcomed` flag.
 if (!settings.welcomed && Object.keys(progress).length === 0 && /^#?\/?$/.test(location.hash)) {
-  location.replace("#/welcome");
+  // replaceState fires no hashchange, so the guide renders once, by the route() below.
+  history.replaceState(null, "", "#/welcome");
 }
 onVoicesChanged(refreshVoices);
 window.addEventListener("hashchange", route);
