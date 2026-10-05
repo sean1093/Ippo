@@ -33,7 +33,23 @@ src/
 渲染模組只負責畫題目與判斷對錯；「答錯移到最後」、進度條、回饋訊息都由 `runDrill` 統一處理。
 
 ### 新增一種上課步驟
-`src/ui/lesson/steps.ts` 的 `lessonSteps()` 決定一課的學習步驟順序。新步驟是一個回傳 `StepView` 的函式（`el` 是畫面，`onShow` 會在使用者點進來時執行，可以在這裡播放聲音）。
+`src/ui/lesson/steps.ts` 的 `lessonSteps()` 決定一課的學習步驟順序。新步驟是一個回傳 `StepView` 的函式：
+
+- `el` 是畫面。
+- `onShow` 會在使用者點進來時執行，可以在這裡播放聲音。
+- `onLeave` 會在離開這個步驟時執行（換下一步、回上一步、關掉或用瀏覽器返回），用來停掉聲音、放掉麥克風、`URL.revokeObjectURL()`。只要步驟握著資源就一定要實作它。
+
+### 情境會話的四種模式
+`src/ui/lesson/dialogue.ts` 只放最上面的模式切換；每一種模式是 `src/ui/lesson/dialogue/` 底下的一個模組，回傳 `DialogueMode`（`el` ＋ 選用的 `onLeave`）：
+
+| 模式 | 模組 | 做什麼 |
+|---|---|---|
+| 閱讀 | `read.ts` | 整段對話、逐句發音、隱藏中文 |
+| 先聽懂 | `hear.ts` | 先藏起文字，只用耳朵聽，再逐句打開 |
+| 跟讀 | `shadow.ts` | 原音 → 錄自己 → 聽自己比對 |
+| 角色扮演 | `roleplay.ts` | 對方的台詞自動播放，你的台詞用說的 |
+
+對話泡泡與「播放全部」共用 `dialogue/shared.ts`；切換模式時會先呼叫前一個模式的 `onLeave`。新增一種模式＝多一個模組加 `MODES` 一筆。
 
 ### 新增頁面或分頁
 - 頁面：在 `src/main.ts` 的 `PAGES` 加一筆。網址是 `#/<名稱>/<參數…>`；有 `tab` 的頁面會套用底部分頁列。
@@ -54,6 +70,15 @@ src/
 
 ### 語音
 所有發音都經過 `src/lib/speech.ts` 的 `speak()`，畫面元件透過 `src/ui/japanese.ts` 的 `play()`／`playSequence()` 使用。之後若要改用預錄音檔，只需要在 `speak()` 這一處切換來源。
+
+### 說出來：語音辨識與錄音
+角色扮演與跟讀會用到麥克風，兩支包裝都在 `lib/`，不碰 DOM：
+
+- `src/lib/listen.ts`：一次性的語音辨識（`SpeechRecognition`／`webkitSpeechRecognition`，ja-JP，五個候選，有逾時）。`canRecognize()` 告訴畫面能不能用；開始聽之前一定先停掉朗讀，否則會把自己的聲音聽進去。
+- `src/lib/recorder.ts`：`MediaRecorder` 包裝（Safari 用 audio/mp4、Chrome 用 audio/webm），八秒自動停，結束一定放掉麥克風。
+- `src/lib/match.ts`：`judgeSpeech()` 把辨識結果正規化（去標點與空白、片假名轉平假名、全形轉半形）後，同時跟漢字原文和假名讀音比對，用編輯距離給 pass／close／miss。
+
+**隱私**：辨識的聲音會送到瀏覽器廠商（Chrome → Google、Safari → Apple），錄音則完全留在裝置上、離開畫面就 `revokeObjectURL()` 丟掉。第一次用麥克風前會顯示這段說明，看過了記在設定 `micNoticeSeen`。在不方便出聲的場合，`speakOffUntil`（epoch 毫秒）讓學習者把說話練習關一小時，期間所有需要開口的地方改成自評。
 
 ## 卡片與每日複習
 

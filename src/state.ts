@@ -9,20 +9,35 @@ export interface Settings {
   rate: number;
   /** `voiceURI` of the chosen voice; null picks the best available. */
   voice: string | null;
+  /** The learner has acknowledged what happens to their voice before the first microphone use. */
+  micNoticeSeen: boolean;
+  /** Speaking practice is paused until this time (epoch ms); 0 means it is on. */
+  speakOffUntil: number;
 }
 
-export const DEFAULT_SETTINGS: Settings = { romaji: true, furigana: true, autoplay: true, rate: 0.85, voice: null };
+export const DEFAULT_SETTINGS: Settings = {
+  romaji: true,
+  furigana: true,
+  autoplay: true,
+  rate: 0.85,
+  voice: null,
+  micNoticeSeen: false,
+  speakOffUntil: 0,
+};
 
 /** Saved settings over the defaults; malformed fields fall back individually. */
 export function parseSettings(data: unknown): Settings {
   const saved = asRecord(data) ?? {};
   const settings = { ...DEFAULT_SETTINGS };
-  for (const key of ["romaji", "furigana", "autoplay"] as const) {
+  for (const key of ["romaji", "furigana", "autoplay", "micNoticeSeen"] as const) {
     const value = saved[key];
     if (typeof value === "boolean") settings[key] = value;
   }
   if (typeof saved.rate === "number" && saved.rate >= 0.5 && saved.rate <= 1.5) settings.rate = saved.rate;
   if (typeof saved.voice === "string") settings.voice = saved.voice;
+  if (typeof saved.speakOffUntil === "number" && Number.isFinite(saved.speakOffUntil) && saved.speakOffUntil > 0) {
+    settings.speakOffUntil = saved.speakOffUntil;
+  }
   return settings;
 }
 
