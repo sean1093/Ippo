@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { parseChallenges } from "../src/learn/challenge";
 import { defineStore } from "../src/lib/store";
 import { DEFAULT_SETTINGS, parseProgress, parseSettings } from "../src/state";
 
@@ -63,5 +64,22 @@ describe("parseProgress", () => {
     };
     expect(parseProgress(data)).toEqual({ greetings: { best: 80, at: "2026-10-01T00:00:00.000Z" } });
     expect(parseProgress("oops")).toEqual({});
+  });
+});
+
+describe("parseChallenges", () => {
+  it("keeps well-formed results and drops the rest", () => {
+    const data = {
+      greetings: { best: 100, at: "2026-10-05T00:00:00.000Z" },
+      shopping: { best: "100", at: "2026-10-05T00:00:00.000Z" },
+      dining: { best: 80 },
+      sounds: null,
+    };
+    expect(parseChallenges(data)).toEqual({ greetings: { best: 100, at: "2026-10-05T00:00:00.000Z" } });
+  });
+
+  it("falls back to no results for anything that is not an object", () => {
+    expect(parseChallenges(undefined)).toEqual({});
+    expect(parseChallenges("oops")).toEqual({});
   });
 });

@@ -1,14 +1,18 @@
 import { LESSONS } from "../../content/course";
 import type { Lesson } from "../../content/types";
 import { lessonCards } from "../../learn/cards";
-import { answer, introduce, studied } from "../../learn/memory";
-import { lessonQuestions } from "../../quiz/questions";
+import { answer, currentMixIns, introduce, memoryOf, studied } from "../../learn/memory";
+import { reviewQuestions } from "../../learn/review";
+import { lessonQuestions, type Question } from "../../quiz/questions";
 import { completeLesson, progress } from "../../state";
 import { BUTTON, fill, h, icon, LABEL } from "../dom";
 import { runDrill } from "../drill";
 import { hush } from "../japanese";
 import { focusLayout, resultView, stars } from "../layout";
 import { lessonSteps } from "./steps";
+
+/** Cards from earlier lessons mixed into one lesson quiz. */
+const MIX_INS = 3;
 
 /**
  * One lesson, one screen at a time: intro → learning steps → quiz → result.
@@ -20,8 +24,13 @@ export function renderLesson(root: HTMLElement, lesson: Lesson): void {
   const next = LESSONS[position + 1];
   const earlier = LESSONS.slice(0, position).flatMap((l) => l.words);
   const steps = lessonSteps(lesson);
-  let questions = lessonQuestions(lesson, earlier);
-  const total = steps.length + questions.length;
+  // Old material comes back inside the quiz, interleaved with the new words, so
+  // the lesson is never a block of only-just-taught answers. Built per run: a
+  // retake must not re-ask review questions the first run has already answered.
+  const buildQuestions = (): Question[] =>
+    lessonQuestions(lesson, earlier, Math.random, reviewQuestions(currentMixIns(lesson, MIX_INS), memoryOf));
+  let questions = buildQuestions();
+  let total = steps.length + questions.length;
   let phase: "intro" | "learn" | "quiz" | "done" = "intro";
 
   const { main, footer, setProgress } = focusLayout(root, () => {
@@ -106,6 +115,7 @@ export function renderLesson(root: HTMLElement, lesson: Lesson): void {
   function quiz(): void {
     phase = "quiz";
     hush();
+    total = steps.length + questions.length;
     setProgress(steps.length / total);
     runDrill(questions, {
       main,
@@ -137,7 +147,7 @@ export function renderLesson(root: HTMLElement, lesson: Lesson): void {
           type: "button",
           class: `${BUTTON.secondary} mt-3`,
           onclick: () => {
-            questions = lessonQuestions(lesson, earlier);
+            questions = buildQuestions();
             quiz();
           },
         },

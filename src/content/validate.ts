@@ -5,6 +5,8 @@ import type { Jp, Lesson, Unit } from "./types";
 const KANA = /^[\u3041-\u3096\u30a1-\u30faー]+$/;
 /** Anything a learner cannot read without a {…|reading}: kanji, latin letters, digits. */
 const NEEDS_READING = /[\p{Script=Han}A-Za-z0-9０-９]/u;
+/** Ids appear in URLs and in saved progress, so they stay to a safe, stable shape. */
+const KEBAB = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 
 /** Problems with one piece of markup; empty when it is well-formed. */
 export function checkJp(markup: Jp): string[] {
@@ -52,7 +54,7 @@ export function validateLesson(lesson: Lesson): string[] {
   const distinct = (values: string[], path: string) =>
     need(new Set(values).size === values.length, path, `duplicate entries: ${values.join(" / ")}`);
 
-  need(/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(lesson.id), "id", "must be kebab-case");
+  need(KEBAB.test(lesson.id), "id", "must be kebab-case");
   text(lesson.title, "title");
   text(lesson.goal, "goal");
 
@@ -134,12 +136,16 @@ export function validateLesson(lesson: Lesson): string[] {
   return problems;
 }
 
-/** Problems across the whole course, including duplicate lesson ids. */
+/** Problems across the whole course, including duplicate unit or lesson ids. */
 export function validateCourse(units: Unit[]): string[] {
   const lessons = units.flatMap((unit) => unit.lessons);
   const ids = lessons.map((lesson) => lesson.id);
   const dupes = ids.filter((id, i) => ids.indexOf(id) !== i);
+  const unitIds = units.map((unit) => unit.id);
+  const unitDupes = unitIds.filter((id, i) => unitIds.indexOf(id) !== i);
   return [
+    ...units.filter((unit) => !KEBAB.test(unit.id)).map((unit) => `unit id must be kebab-case: ${unit.id}`),
+    ...unitDupes.map((id) => `duplicate unit id: ${id}`),
     ...units.filter((unit) => unit.lessons.length === 0).map((unit) => `unit "${unit.title}" has no lessons`),
     ...dupes.map((id) => `duplicate lesson id: ${id}`),
     ...lessons.flatMap(validateLesson),

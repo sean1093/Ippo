@@ -1,5 +1,6 @@
+import type { Lesson } from "../content/types";
 import { asRecord, defineStore } from "../lib/store";
-import { type Card, CARDS } from "./cards";
+import { type Card, CARDS, lessonCards } from "./cards";
 import { enrol, type Grade, type Memory, recallProbability, schedule } from "./scheduler";
 
 /** One answer, kept only as long as the delayed-recall statistic looks back. */
@@ -27,6 +28,8 @@ const LOG_DAYS = 30;
 // A backstop on top of the 30-day window: rewriting the store on every answer must stay cheap.
 const LOG_LIMIT = 2000;
 const DAYS_LIMIT = 400;
+/** FSRS's target retention: below it a card is already slipping out of memory. */
+const FADING = 0.9;
 const GRADES: readonly unknown[] = ["again", "hard", "good"];
 const NUMBERS = ["due", "stability", "difficulty", "reps", "lapses", "state", "scheduledDays", "last", "level"] as const;
 
@@ -146,6 +149,37 @@ export function weakestIds(data: MemoryData, now: Date, count: number, catalog: 
     .map(([id]) => id);
 }
 
+/**
+ * Ids worth slipping into another lesson's quiz: cards the learner already has
+ * from elsewhere in the course, so new material is practised against old.
+ * Overdue cards come first (the most overdue of all), then the ones the model
+ * no longer trusts. `excludeIds` are the lesson's own cards — a card can be
+ * re-taught by a later lesson, so its `source` alone does not say who owns it.
+ */
+export function pickMixIns(
+  data: MemoryData,
+  catalog: Catalog,
+  excludeIds: ReadonlySet<string>,
+  now: Date,
+  count: number,
+): string[] {
+  if (count <= 0) return [];
+  const limit = endOfDay(now);
+  const due: [string, number][] = [];
+  const fading: [string, number][] = [];
+  for (const [id, memory] of Object.entries(data.cards)) {
+    if (!catalog.has(id) || excludeIds.has(id)) continue;
+    if (memory.due < limit) due.push([id, memory.due]);
+    else {
+      const recall = recallProbability(memory, now);
+      if (recall < FADING) fading.push([id, recall]);
+    }
+  }
+  due.sort(([, a], [, b]) => a - b);
+  fading.sort(([, a], [, b]) => a - b);
+  return [...due, ...fading].slice(0, count).map(([id]) => id);
+}
+
 export interface Stats {
   /** Known cards the learner has met. */
   learned: number;
@@ -238,6 +272,12 @@ export function currentNextDue(now = new Date()): NextDue | null {
 
 export function currentWeakest(count: number, now = new Date()): string[] {
   return weakestIds(memory, now, count, CARDS);
+}
+
+/** Cards from the rest of the course to mix into `lesson`'s quiz. */
+export function currentMixIns(lesson: Lesson, count: number, now = new Date()): string[] {
+  const own = new Set(lessonCards(lesson).map((card) => card.id));
+  return pickMixIns(memory, CARDS, own, now, count);
 }
 
 export function currentStats(now = new Date()): Stats {
