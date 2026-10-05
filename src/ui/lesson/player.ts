@@ -32,14 +32,29 @@ export function renderLesson(root: HTMLElement, lesson: Lesson): void {
   let questions = buildQuestions();
   let total = steps.length + questions.length;
   let phase: "intro" | "learn" | "quiz" | "done" = "intro";
+  /** The current step's clean-up, run before anything replaces it on screen. */
+  let leaveStep: (() => void) | undefined;
+
+  function leave(): void {
+    leaveStep?.();
+    leaveStep = undefined;
+  }
 
   const { main, footer, setProgress } = focusLayout(root, () => {
     if ((phase === "learn" || phase === "quiz") && !window.confirm("要離開這一課嗎？這次的進度不會保存。")) return;
+    leave();
     location.hash = "#/";
   });
+  // Leaving with the browser's back gesture never reaches the close button.
+  const onLeavePage = (): void => {
+    leave();
+    window.removeEventListener("hashchange", onLeavePage);
+  };
+  window.addEventListener("hashchange", onLeavePage);
 
   function intro(): void {
     phase = "intro";
+    leave();
     hush();
     setProgress(0);
     const best = progress[lesson.id]?.best;
@@ -76,6 +91,7 @@ export function renderLesson(root: HTMLElement, lesson: Lesson): void {
   }
 
   function step(i: number): void {
+    leave();
     const build = steps[i];
     if (!build) {
       quiz();
@@ -86,6 +102,7 @@ export function renderLesson(root: HTMLElement, lesson: Lesson): void {
     window.scrollTo(0, 0);
     setProgress(i / total);
     const view = build();
+    leaveStep = view.onLeave;
     main.replaceChildren(view.el);
     footer.replaceChildren(
       h(
@@ -113,6 +130,7 @@ export function renderLesson(root: HTMLElement, lesson: Lesson): void {
   }
 
   function quiz(): void {
+    leave();
     phase = "quiz";
     hush();
     total = steps.length + questions.length;

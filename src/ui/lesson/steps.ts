@@ -9,6 +9,11 @@ export interface StepView {
   el: HTMLElement;
   /** Runs once the step is on screen, inside the tap that brought it there, so audio may start. */
   onShow?: () => void;
+  /**
+   * Runs when the learner leaves this step, before the next one is built: the
+   * place to stop audio, release the microphone and revoke object URLs.
+   */
+  onLeave?: () => void;
 }
 
 /** One screen of a lesson's learning phase, built when it is shown. */

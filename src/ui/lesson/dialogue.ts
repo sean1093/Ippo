@@ -1,83 +1,60 @@
 import type { Dialogue } from "../../content/types";
-import { h, icon, LABEL } from "../dom";
-import { hush, jpText, playSequence, speakButton } from "../japanese";
+import { fill, h, icon, LABEL } from "../dom";
+import { hush } from "../japanese";
+import { hearMode } from "./dialogue/hear";
+import { readMode } from "./dialogue/read";
+import { roleplayMode } from "./dialogue/roleplay";
+import type { DialogueMode } from "./dialogue/shared";
+import { shadowMode } from "./dialogue/shadow";
 import type { StepView } from "./steps";
 
-/** The lesson's conversation as chat bubbles, with play-all and a translation toggle. */
+/**
+ * The conversation, in the order that makes it stick: read it, understand it
+ * by ear, say it along with the voice, then hold up B's half yourself. Each
+ * mode is a module under `dialogue/`; they share the chat bubbles in
+ * `dialogue/shared.ts`. A mode that holds the microphone or an object URL
+ * releases it in `onLeave`, which also runs when the mode is switched.
+ */
+const MODES: { label: string; build: (dialogue: Dialogue) => DialogueMode }[] = [
+  { label: "閱讀", build: readMode },
+  { label: "先聽懂", build: hearMode },
+  { label: "跟讀", build: shadowMode },
+  { label: "角色扮演", build: roleplayMode },
+];
+
+const TAB = "rounded-full px-2 py-2 text-sm font-semibold transition active:scale-95";
+
 export function dialogueStep(dialogue: Dialogue): StepView {
-  const rows = dialogue.lines.map((line) => {
-    const mine = line.who === "B";
-    const button = speakButton(line.jp, "sm");
-    const zh = h("p", { class: "mt-1 text-sm text-ink/75" }, line.zh);
-    const bubble = h(
-      "div",
-      {
-        class: `max-w-[88%] rounded-2xl px-4 py-3 outline-2 outline-offset-2 outline-ai ${
-          mine ? "rounded-tr-md bg-ai-soft" : "rounded-tl-md bg-card ring-1 ring-hair"
-        }`,
-      },
-      h("div", { class: "flex items-start gap-2" }, h("div", { class: "min-w-0 flex-1" }, jpText(line.jp)), button),
-      zh,
-    );
-    const row = h(
-      "div",
-      { class: `flex flex-col ${mine ? "items-end" : "items-start"}` },
-      h("p", { class: "mb-1 px-1 text-xs font-semibold text-muted" }, dialogue.cast[line.who]),
-      bubble,
-    );
-    return { jp: line.jp, button, zh, bubble, row };
-  });
+  const body = h("div", { class: "mt-5" });
+  let current: DialogueMode | null = null;
+  /** The mode on screen: tapping its own tab must not throw its recordings or run away. */
+  let shown = -1;
 
-  const playLabel = h("span", null, "播放全部");
-  const playAll = h(
-    "button",
-    {
-      type: "button",
-      class: "inline-flex items-center gap-2 rounded-full bg-ai px-4 py-2 text-sm font-semibold text-white active:scale-95",
-    },
-    icon("play", "h-4 w-4"),
-    playLabel,
+  const tabs = MODES.map((mode, i) =>
+    h("button", { type: "button", class: TAB, onclick: () => show(i) }, mode.label),
   );
-  let running = false;
-  playAll.addEventListener("click", async () => {
-    if (running) {
-      hush();
-      return;
-    }
-    running = true;
-    playLabel.textContent = "停止";
-    await playSequence(rows, (current) => {
-      rows.forEach((row, i) => row.bubble.classList.toggle("outline", i === current));
-      rows[current]?.row.scrollIntoView({ block: "nearest", behavior: "smooth" });
-    });
-    for (const row of rows) row.bubble.classList.remove("outline");
-    playLabel.textContent = "播放全部";
-    running = false;
-  });
 
-  let hidden = false;
-  const zhToggle = h(
-    "button",
-    {
-      type: "button",
-      class: "rounded-full bg-card px-4 py-2 text-sm font-semibold text-muted ring-1 ring-hair active:scale-95",
-    },
-    "隱藏中文",
-  );
-  zhToggle.addEventListener("click", () => {
-    hidden = !hidden;
-    for (const row of rows) row.zh.classList.toggle("hidden", hidden);
-    zhToggle.textContent = hidden ? "顯示中文" : "隱藏中文";
-  });
+  function show(i: number): void {
+    const mode = MODES[i];
+    if (!mode || i === shown) return;
+    shown = i;
+    current?.onLeave?.();
+    hush();
+    tabs.forEach((tab, n) => (tab.className = `${TAB} ${n === i ? "bg-ai text-white shadow-sm" : "text-muted"}`));
+    current = mode.build(dialogue);
+    fill(body, current.el);
+  }
+  show(0);
 
   return {
     el: h(
       "div",
-      { class: "pop" },
+      null,
       h("p", { class: LABEL }, "情境會話"),
       h("p", { class: "mt-1 flex items-center gap-1.5 text-lg font-bold" }, icon("pin", "h-5 w-5 text-shu"), dialogue.scene),
-      h("div", { class: "mt-3 flex gap-2" }, playAll, zhToggle),
-      h("div", { class: "mt-5 space-y-4" }, rows.map((row) => row.row)),
+      h("div", { class: "mt-3 grid grid-cols-4 gap-1 rounded-full bg-card p-1 ring-1 ring-hair" }, tabs),
+      body,
     ),
+    onLeave: () => current?.onLeave?.(),
   };
 }
