@@ -1,8 +1,9 @@
-import { COURSE, LESSONS } from "../content/course";
+import { COURSE, LESSONS, lessonsFor } from "../content/course";
+import { lessonMinutes } from "../content/estimate";
 import type { Unit } from "../content/types";
 import { bestChallenge } from "../learn/challenge";
 import { currentDue } from "../learn/memory";
-import { progress } from "../state";
+import { progress, settings } from "../state";
 import { BUTTON, fill, h, icon } from "./dom";
 import { stars } from "./layout";
 import { sessionLabel } from "./practice";
@@ -10,7 +11,7 @@ import { sessionLabel } from "./practice";
 /** The course path: progress, the next lesson to take, and every unit. */
 export function renderHome(main: HTMLElement): void {
   const finished = LESSONS.filter((lesson) => progress[lesson.id]).length;
-  const next = LESSONS.find((lesson) => !progress[lesson.id]);
+  const next = lessonsFor(settings.knowsKana).find((lesson) => !progress[lesson.id]);
   const due = currentDue().length;
   let number = 0;
 
@@ -63,12 +64,15 @@ export function renderHome(main: HTMLElement): void {
         ? h(
             "a",
             { href: `#/lesson/${next.id}`, class: `${due > 0 ? BUTTON.secondary : BUTTON.primary} mt-4` },
-            finished === 0 ? "從第 1 課開始" : `繼續：第 ${LESSONS.indexOf(next) + 1} 課 ${next.title}`,
+            finished === 0
+              ? `從第 ${LESSONS.indexOf(next) + 1} 課開始`
+              : `繼續：第 ${LESSONS.indexOf(next) + 1} 課 ${next.title}`,
             icon("next"),
           )
         : h("p", { class: "mt-4 text-sm leading-relaxed" }, "全部課程都完成了！隨時可以回去任何一課複習或再做測驗。"),
     ),
     finished === 0 &&
+      !settings.knowsKana &&
       h(
         "section",
         { class: "mt-4 rounded-2xl bg-shu-soft p-4 text-sm leading-relaxed" },
@@ -119,7 +123,11 @@ export function renderHome(main: HTMLElement): void {
                   "span",
                   { class: "min-w-0 flex-1" },
                   h("span", { class: "block font-semibold" }, lesson.title),
-                  h("span", { class: "block truncate text-sm text-muted" }, lesson.goal),
+                  h(
+                    "span",
+                    { class: "block truncate text-sm text-muted" },
+                    `約 ${lessonMinutes(lesson)} 分鐘・${lesson.goal}`,
+                  ),
                 ),
                 record ? stars(record.best) : isNext && h("span", { class: "shrink-0 rounded-full bg-ai-soft px-2.5 py-1 text-xs font-semibold text-ai" }, "下一課"),
                 icon("next", "h-4 w-4 shrink-0 text-hair"),

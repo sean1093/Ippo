@@ -18,6 +18,10 @@ export interface Settings {
   micNoticeSeen: boolean;
   /** Speaking practice is paused until this time (epoch ms); 0 means it is on. */
   speakOffUntil: number;
+  /** The learner has been through (or skipped) the first-run guide. */
+  welcomed: boolean;
+  /** The learner already reads kana, so the pronunciation unit is skipped. */
+  knowsKana: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -28,6 +32,8 @@ export const DEFAULT_SETTINGS: Settings = {
   voice: null,
   micNoticeSeen: false,
   speakOffUntil: 0,
+  welcomed: false,
+  knowsKana: false,
 };
 
 /** Saved settings over the defaults; malformed fields fall back individually. */
@@ -37,7 +43,7 @@ export function parseSettings(data: unknown): Settings {
   // Romaji used to be a switch; "on" becomes the fading mode, which is what it meant to a learner.
   if (ROMAJI_MODES.includes(saved.romaji)) settings.romaji = saved.romaji as RomajiMode;
   else if (typeof saved.romaji === "boolean") settings.romaji = saved.romaji ? "auto" : "off";
-  for (const key of ["furigana", "autoplay", "micNoticeSeen"] as const) {
+  for (const key of ["furigana", "autoplay", "micNoticeSeen", "welcomed", "knowsKana"] as const) {
     const value = saved[key];
     if (typeof value === "boolean") settings[key] = value;
   }

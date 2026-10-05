@@ -1,4 +1,5 @@
 import { LESSONS } from "../../content/course";
+import { lessonMinutes } from "../../content/estimate";
 import { NEW_KANA } from "../../content/kana-progression";
 import type { Lesson } from "../../content/types";
 import { lessonCardIds } from "../../learn/cards";
@@ -75,6 +76,7 @@ export function renderLesson(root: HTMLElement, lesson: Lesson): void {
           h(
             "ul",
             { class: "mt-4 list-disc space-y-1 pl-5 text-sm text-ink/80 marker:text-shu" },
+            h("li", null, `大約 ${lessonMinutes(lesson)} 分鐘`),
             newKana.length > 0 && h("li", null, `新假名 ${newKana.length} 個`),
             h("li", null, `單字 ${lesson.words.length} 個`),
             lesson.patterns.length > 0 && h("li", null, `句型 ${lesson.patterns.length} 個`),

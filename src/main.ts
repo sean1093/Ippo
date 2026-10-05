@@ -4,7 +4,7 @@ import { lessonCardIds, setProfileCards } from "./learn/cards";
 import { introduce } from "./learn/memory";
 import { currentProfile } from "./learn/profile";
 import { onVoicesChanged } from "./lib/speech";
-import { applySettings, progress } from "./state";
+import { applySettings, progress, settings } from "./state";
 import { renderChallenge } from "./ui/challenge";
 import { renderHome } from "./ui/home";
 import { hush } from "./ui/japanese";
@@ -18,6 +18,7 @@ import { renderPhrasebook } from "./ui/phrasebook";
 import { renderPractice } from "./ui/practice";
 import { renderReview } from "./ui/review";
 import { refreshVoices, renderSettings } from "./ui/settings";
+import { renderWelcome } from "./ui/welcome";
 
 interface Page {
   /** Pages with a tab render inside the tab-bar layout; the rest own the whole screen. */
@@ -60,6 +61,7 @@ const PAGES: Record<string, Page> = {
   intro: { render: (root) => renderIntroDrill(root) },
   phrasebook: { tab: "me", render: (main) => renderPhrasebook(main) },
   settings: { tab: "me", render: (main) => renderSettings(main) },
+  welcome: { render: (root) => renderWelcome(root) },
 };
 
 const root = document.getElementById("app") as HTMLElement;
@@ -83,6 +85,12 @@ for (const lesson of LESSONS) {
   const at = new Date(record.at);
   // A hand-edited or corrupt date falls back to now rather than enrolling cards at NaN.
   introduce(lessonCardIds(lesson), Number.isNaN(at.getTime()) ? new Date() : at);
+}
+// First run: the guide instead of a course map nobody has context for. A deep
+// link (a shared lesson, a bookmark) is never hijacked, and neither is a
+// learner who already has progress but somehow no `welcomed` flag.
+if (!settings.welcomed && Object.keys(progress).length === 0 && /^#?\/?$/.test(location.hash)) {
+  location.replace("#/welcome");
 }
 onVoicesChanged(refreshVoices);
 window.addEventListener("hashchange", route);

@@ -22,6 +22,7 @@ export const COURSE: Unit[] = [
     id: "sounds",
     title: "發音入門",
     summary: "先把耳朵打開：五個母音、日文的節奏與特殊音。",
+    skippableWithKana: true,
     lessons: [sounds, specialSounds],
   },
   {
@@ -64,3 +65,11 @@ export const COURSE: Unit[] = [
 
 /** Every lesson in learning order. */
 export const LESSONS: Lesson[] = COURSE.flatMap((unit) => unit.lessons);
+
+/**
+ * The lessons a learner actually takes. Someone who already reads kana starts
+ * after the pronunciation unit; the course map still lists every lesson.
+ */
+export function lessonsFor(knowsKana: boolean): Lesson[] {
+  return COURSE.filter((unit) => !knowsKana || !unit.skippableWithKana).flatMap((unit) => unit.lessons);
+}
