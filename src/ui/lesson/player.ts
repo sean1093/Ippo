@@ -1,6 +1,6 @@
 import { LESSONS } from "../../content/course";
 import type { Lesson } from "../../content/types";
-import { lessonCards } from "../../learn/cards";
+import { lessonCardIds } from "../../learn/cards";
 import { answer, currentMixIns, introduce, memoryOf, studied } from "../../learn/memory";
 import { reviewQuestions } from "../../learn/review";
 import { lessonQuestions, type Question } from "../../quiz/questions";
@@ -149,7 +149,7 @@ export function renderLesson(root: HTMLElement, lesson: Lesson): void {
   function finish(score: number): void {
     phase = "done";
     completeLesson(lesson.id, score);
-    introduce(lessonCards(lesson).map((card) => card.id));
+    introduce(lessonCardIds(lesson));
     studied();
     setProgress(1);
     window.scrollTo(0, 0);

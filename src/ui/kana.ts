@@ -1,5 +1,5 @@
 import { KANA_SECTIONS } from "../content/kana";
-import { studied } from "../learn/memory";
+import { answer, studied } from "../learn/memory";
 import { kanaToRomaji, toKatakana } from "../lib/romaji";
 import { kanaQuestions } from "../quiz/questions";
 import { BUTTON, fill, h } from "./dom";
@@ -11,6 +11,23 @@ export type Script = "hira" | "kata";
 
 const SCRIPT_NAME: Record<Script, string> = { hira: "平假名", kata: "片假名" };
 const QUIZ_LENGTH = 10;
+
+/** One tappable kana: the character, its romaji, and its sound. Shared by the chart and the lesson step. */
+export function kanaCell(kana: string): HTMLButtonElement {
+  const button = h(
+    "button",
+    {
+      type: "button",
+      class:
+        "flex aspect-square flex-col items-center justify-center rounded-xl bg-card ring-1 ring-hair transition active:scale-95",
+      "aria-label": `${kana}，${kanaToRomaji(kana)}`,
+    },
+    h("span", { lang: "ja", class: `${kana.length > 1 ? "text-xl" : "text-2xl"} leading-none` }, kana),
+    h("span", { class: "mt-1 text-xs text-muted" }, kanaToRomaji(kana)),
+  );
+  button.addEventListener("click", () => void play(kana, button));
+  return button;
+}
 
 /** Tap-to-hear kana chart. */
 export function renderKana(main: HTMLElement, script: Script): void {
@@ -57,23 +74,9 @@ export function renderKana(main: HTMLElement, script: Script): void {
         h(
           "div",
           { class: `mt-3 grid gap-2 ${section.rows[0]?.length === 3 ? "grid-cols-3" : "grid-cols-5"}` },
-          section.rows.flat().map((cell) => {
-            if (cell === null) return h("span", { "aria-hidden": "true" });
-            const kana = script === "kata" ? toKatakana(cell) : cell;
-            const button = h(
-              "button",
-              {
-                type: "button",
-                class:
-                  "flex aspect-square flex-col items-center justify-center rounded-xl bg-card ring-1 ring-hair transition active:scale-95",
-                "aria-label": `${kana}，${kanaToRomaji(kana)}`,
-              },
-              h("span", { lang: "ja", class: `${cell.length > 1 ? "text-xl" : "text-2xl"} leading-none` }, kana),
-              h("span", { class: "mt-1 text-xs text-muted" }, kanaToRomaji(kana)),
-            );
-            button.addEventListener("click", () => void play(kana, button));
-            return button;
-          }),
+          section.rows.flat().map((cell) =>
+            cell === null ? h("span", { "aria-hidden": "true" }) : kanaCell(script === "kata" ? toKatakana(cell) : cell),
+          ),
         ),
       ),
     ),
@@ -102,6 +105,9 @@ export function renderKanaQuiz(root: HTMLElement, script: Script, sectionId: str
       main,
       footer,
       onProgress: (cleared) => setProgress(cleared / questions.length),
+      onFirstAnswer: (question, outcome) => {
+        if (question.card) answer(question.card, outcome.grade, "pick");
+      },
       onFinish: (score) => {
         finished = true;
         studied();

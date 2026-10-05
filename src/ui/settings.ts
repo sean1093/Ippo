@@ -1,9 +1,15 @@
 import { resetChallenges } from "../learn/challenge";
 import { resetMemory } from "../learn/memory";
 import { japaneseVoices, voiceStatus } from "../lib/speech";
-import { progress, resetProgress, type Settings, settings, updateSettings } from "../state";
+import { progress, resetProgress, type RomajiMode, type Settings, settings, updateSettings } from "../state";
 import { type Child, h, icon } from "./dom";
 import { play } from "./japanese";
+
+const ROMAJI_CHOICES: { label: string; value: RomajiMode }[] = [
+  { label: "自動", value: "auto" },
+  { label: "一律顯示", value: "always" },
+  { label: "不顯示", value: "off" },
+];
 
 const RATES = [
   { label: "慢", value: 0.6 },
@@ -20,11 +26,7 @@ export function renderSettings(main: HTMLElement): void {
   voiceHost = h("div");
   main.append(
     h("h1", { class: "pt-3 text-2xl font-bold" }, "設定"),
-    card(
-      "顯示",
-      toggle("romaji", "顯示羅馬拼音", "還看不懂假名時的好幫手，熟悉之後可以關掉。"),
-      toggle("furigana", "顯示漢字讀音", "在漢字上方用平假名標出讀法。"),
-    ),
+    card("顯示", romajiRow(), toggle("furigana", "顯示漢字讀音", "在漢字上方用平假名標出讀法。")),
     card("發音", toggle("autoplay", "自動播放", "卡片和題目出現時，自動唸一次。"), rateRow(), voiceHost),
     card("學習紀錄", resetRow()),
     h(
@@ -84,7 +86,7 @@ function card(title: string, ...rows: Child[]): HTMLElement {
   );
 }
 
-function toggle(key: "romaji" | "furigana" | "autoplay", title: string, hint: string): HTMLElement {
+function toggle(key: "furigana" | "autoplay", title: string, hint: string): HTMLElement {
   const input = h("input", { type: "checkbox", role: "switch", class: "peer sr-only" });
   input.checked = settings[key];
   input.addEventListener("change", () => {
@@ -103,6 +105,36 @@ function toggle(key: "romaji" | "furigana" | "autoplay", title: string, hint: st
       class:
         "relative h-7 w-12 shrink-0 rounded-full bg-hair transition after:absolute after:left-1 after:top-1 after:h-5 after:w-5 after:rounded-full after:bg-white after:shadow after:transition peer-checked:bg-ai peer-checked:after:translate-x-5 peer-focus-visible:ring-2 peer-focus-visible:ring-ai",
     }),
+  );
+}
+
+function romajiRow(): HTMLElement {
+  const buttons = ROMAJI_CHOICES.map((choice) =>
+    h(
+      "button",
+      {
+        type: "button",
+        onclick: () => {
+          updateSettings({ romaji: choice.value });
+          paint();
+        },
+      },
+      choice.label,
+    ),
+  );
+  const paint = () =>
+    buttons.forEach((button, i) => {
+      const on = ROMAJI_CHOICES[i]?.value === settings.romaji;
+      button.setAttribute("aria-pressed", String(on));
+      button.className = `flex-1 rounded-lg py-2 text-sm font-semibold transition ${on ? "bg-card text-ink shadow-sm" : "text-muted"}`;
+    });
+  paint();
+  return h(
+    "div",
+    { class: "py-3" },
+    h("p", { class: "font-medium" }, "羅馬拼音"),
+    h("p", { class: "mt-0.5 text-sm text-muted" }, "自動：熟悉的假名就不再標拼音"),
+    h("div", { class: "mt-2 flex gap-1 rounded-xl bg-hair/70 p-1" }, buttons),
   );
 }
 

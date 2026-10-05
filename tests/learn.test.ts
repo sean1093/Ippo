@@ -189,6 +189,8 @@ describe("cards", () => {
 
   it("files a card under the first lesson that teaches it", () => {
     for (const [id, card] of CARDS) {
+      // Kana are cards of the chart, not of one lesson.
+      if (card.kind === "kana") continue;
       const first = LESSONS.find((lesson) => lessonCards(lesson).some((c) => c.id === id));
       expect(card.source).toBe(first?.id);
     }

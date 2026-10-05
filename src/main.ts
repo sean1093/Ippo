@@ -1,6 +1,6 @@
 import "./style.css";
 import { COURSE, LESSONS } from "./content/course";
-import { lessonCards } from "./learn/cards";
+import { lessonCardIds } from "./learn/cards";
 import { introduce } from "./learn/memory";
 import { onVoicesChanged } from "./lib/speech";
 import { applySettings, progress } from "./state";
@@ -68,7 +68,7 @@ for (const lesson of LESSONS) {
   if (!record) continue;
   const at = new Date(record.at);
   // A hand-edited or corrupt date falls back to now rather than enrolling cards at NaN.
-  introduce(lessonCards(lesson).map((card) => card.id), Number.isNaN(at.getTime()) ? new Date() : at);
+  introduce(lessonCardIds(lesson), Number.isNaN(at.getTime()) ? new Date() : at);
 }
 onVoicesChanged(refreshVoices);
 window.addEventListener("hashchange", route);

@@ -1,6 +1,8 @@
 import { LESSONS } from "../content/course";
+import { COURSE_KANA, NEW_KANA } from "../content/kana-progression";
 import type { Jp, Lesson } from "../content/types";
 import { plain } from "../lib/jp";
+import { kanaToRomaji } from "../lib/romaji";
 
 /** One thing to remember, reviewed on its own schedule. `kind` decides how review asks it. */
 export interface Card {
@@ -12,7 +14,7 @@ export interface Card {
   id: string;
   jp: Jp;
   zh: string;
-  kind: "word" | "sentence";
+  kind: "word" | "sentence" | "kana";
   /** "say": the learner should produce it. "hear": only understand it (someone else's line, a lone kana). */
   use: "say" | "hear";
   /**
@@ -40,9 +42,33 @@ export function lessonCards(lesson: Lesson): Card[] {
   return [...cards.values()];
 }
 
-/** Every card in the course by id, in teaching order; a card in several lessons belongs to the first. */
+/** The review card id of a single kana; the chart quiz and daily review share it. */
+export function kanaCardId(kana: string): string {
+  return `kana:${kana}`;
+}
+
+/** What finishing a lesson puts into review: its cards, plus the kana it is the first to use. */
+export function lessonCardIds(lesson: Lesson): string[] {
+  return [...lessonCards(lesson).map((card) => card.id), ...(NEW_KANA.get(lesson.id) ?? []).map(kanaCardId)];
+}
+
+/**
+ * Every card in the course by id, in teaching order; a card in several lessons
+ * belongs to the first. The kana the course uses are cards of their own, so
+ * reading them is practised and tracked like anything else.
+ */
 export const CARDS: ReadonlyMap<string, Card> = (() => {
   const all = new Map<string, Card>();
   for (const card of LESSONS.flatMap(lessonCards)) if (!all.has(card.id)) all.set(card.id, card);
+  for (const kana of COURSE_KANA) {
+    all.set(kanaCardId(kana), {
+      id: kanaCardId(kana),
+      jp: kana,
+      zh: kanaToRomaji(kana),
+      kind: "kana",
+      use: "hear",
+      source: "kana",
+    });
+  }
   return all;
 })();

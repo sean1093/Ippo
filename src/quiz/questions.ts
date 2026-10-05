@@ -1,4 +1,5 @@
 import type { Exercise, Jp, Lesson } from "../content/types";
+import { kanaCardId } from "../learn/cards";
 import { plain, readings, tiles } from "../lib/jp";
 import { kanaToRomaji } from "../lib/romaji";
 import { type Rng, shuffle } from "./drill";
@@ -180,7 +181,11 @@ export function lessonQuestions(
   return [...spread(vocab, mixIns), ...lesson.exercises.map((ex) => exerciseQuestion(ex, rng)), ...recall];
 }
 
-/** Alternating "read the kana" and "hear and pick the kana" questions over `pool`. */
+/**
+ * Alternating "read the kana" and "hear and pick the kana" questions over
+ * `pool`. Each one reviews that kana's card, so chart practice counts towards
+ * knowing it (a two-kana cell like きゃ has no card and is simply not tracked).
+ */
 export function kanaQuestions(pool: readonly string[], count: number, rng: Rng = Math.random): Question[] {
   return shuffle(pool, rng)
     .slice(0, count)
@@ -198,13 +203,13 @@ export function kanaQuestions(pool: readonly string[], count: number, rng: Rng =
       }
       return i % 2 === 0
         ? mc(
-            { prompt: "這個假名怎麼唸？", jp: kana, mode: "read", say: kana },
+            { prompt: "這個假名怎麼唸？", jp: kana, mode: "read", say: kana, card: kanaCardId(kana) },
             { text: sound },
             others.map((o) => ({ text: kanaToRomaji(o) })),
             rng,
           )
         : mc(
-            { prompt: "聽聽看，是哪一個假名？", jp: kana, mode: "listen", hideRomaji: true, say: kana },
+            { prompt: "聽聽看，是哪一個假名？", jp: kana, mode: "listen", hideRomaji: true, say: kana, card: kanaCardId(kana) },
             { jp: kana },
             others.map((jp) => ({ jp })),
             rng,
