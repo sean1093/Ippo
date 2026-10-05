@@ -1,3 +1,4 @@
+import { resetMemory } from "../learn/memory";
 import { japaneseVoices, voiceStatus } from "../lib/speech";
 import { progress, resetProgress, type Settings, settings, updateSettings } from "../state";
 import { type Child, h, icon } from "./dom";
@@ -169,6 +170,7 @@ function resetRow(): HTMLElement {
   button.addEventListener("click", () => {
     if (!window.confirm("確定要清除所有學習紀錄嗎？這個動作無法復原。")) return;
     resetProgress();
+    resetMemory();
     status.textContent = "學習紀錄已清除。";
     button.disabled = true;
   });

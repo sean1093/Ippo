@@ -1,12 +1,16 @@
 import "./style.css";
 import { LESSONS } from "./content/course";
+import { lessonCards } from "./learn/cards";
+import { introduce } from "./learn/memory";
 import { onVoicesChanged } from "./lib/speech";
-import { applySettings } from "./state";
+import { applySettings, progress } from "./state";
 import { renderHome } from "./ui/home";
 import { hush } from "./ui/japanese";
 import { renderKana, renderKanaQuiz } from "./ui/kana";
 import { type Tab, tabLayout } from "./ui/layout";
 import { renderLesson } from "./ui/lesson/player";
+import { renderPractice } from "./ui/practice";
+import { renderReview } from "./ui/review";
 import { refreshVoices, renderSettings } from "./ui/settings";
 
 interface Page {
@@ -29,6 +33,8 @@ const PAGES: Record<string, Page> = {
       else location.replace("#/");
     },
   },
+  practice: { tab: "practice", render: (main) => renderPractice(main) },
+  review: { render: (root) => renderReview(root) },
   kana: { tab: "kana", render: (main, [script]) => renderKana(main, script === "kata" ? "kata" : "hira") },
   "kana-quiz": {
     render: (root, [script, section]) => renderKanaQuiz(root, script === "kata" ? "kata" : "hira", section),
@@ -48,6 +54,14 @@ function route(): void {
 }
 
 applySettings();
+// Lessons finished before daily review existed join it as of the day they were finished.
+for (const lesson of LESSONS) {
+  const record = progress[lesson.id];
+  if (!record) continue;
+  const at = new Date(record.at);
+  // A hand-edited or corrupt date falls back to now rather than enrolling cards at NaN.
+  introduce(lessonCards(lesson).map((card) => card.id), Number.isNaN(at.getTime()) ? new Date() : at);
+}
 onVoicesChanged(refreshVoices);
 window.addEventListener("hashchange", route);
 route();

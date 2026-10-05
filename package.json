@@ -22,5 +22,8 @@
     "typescript": "^7.0.2",
     "vite": "^8.3.2",
     "vitest": "^5.0.3"
+  },
+  "dependencies": {
+    "ts-fsrs": "^5.4.2"
   }
 }

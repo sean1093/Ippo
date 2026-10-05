@@ -1,12 +1,15 @@
 import { COURSE, LESSONS } from "../content/course";
+import { currentDue } from "../learn/memory";
 import { progress } from "../state";
 import { BUTTON, fill, h, icon } from "./dom";
 import { stars } from "./layout";
+import { sessionLabel } from "./practice";
 
 /** The course path: progress, the next lesson to take, and every unit. */
 export function renderHome(main: HTMLElement): void {
   const finished = LESSONS.filter((lesson) => progress[lesson.id]).length;
   const next = LESSONS.find((lesson) => !progress[lesson.id]);
+  const due = currentDue().length;
   let number = 0;
 
   fill(
@@ -26,9 +29,23 @@ export function renderHome(main: HTMLElement): void {
         h("p", { class: "text-sm text-muted" }, "一步一步，開口說日文"),
       ),
     ),
+    // One primary action: when reviews are due they come first, the next lesson second.
+    due > 0 &&
+      h(
+        "a",
+        { href: "#/review", class: "mt-6 flex items-center gap-3 rounded-2xl bg-ai p-4 text-white shadow-sm transition active:scale-[0.99]" },
+        h("span", { class: "flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/15" }, icon("repeat")),
+        h(
+          "span",
+          { class: "min-w-0 flex-1" },
+          h("span", { class: "block font-semibold" }, `今天要複習 ${due} 張`),
+          h("span", { class: "block text-sm text-white/80" }, `${sessionLabel(due)}・先複習，再上新課`),
+        ),
+        icon("next"),
+      ),
     h(
       "section",
-      { class: "mt-6 rounded-2xl bg-card p-5 shadow-sm ring-1 ring-hair" },
+      { class: `${due > 0 ? "mt-4" : "mt-6"} rounded-2xl bg-card p-5 shadow-sm ring-1 ring-hair` },
       h(
         "div",
         { class: "flex items-baseline justify-between" },
@@ -43,7 +60,7 @@ export function renderHome(main: HTMLElement): void {
       next
         ? h(
             "a",
-            { href: `#/lesson/${next.id}`, class: `${BUTTON.primary} mt-4` },
+            { href: `#/lesson/${next.id}`, class: `${due > 0 ? BUTTON.secondary : BUTTON.primary} mt-4` },
             finished === 0 ? "從第 1 課開始" : `繼續：第 ${LESSONS.indexOf(next) + 1} 課 ${next.title}`,
             icon("next"),
           )

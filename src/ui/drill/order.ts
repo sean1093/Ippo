@@ -59,10 +59,11 @@ export function renderOrder(q: Order, surface: Surface, answered: Answered): voi
     const correct = attempt === q.answer.join(" ");
     for (const button of [...line.querySelectorAll("button"), ...bank]) button.disabled = true;
     line.classList.replace("border-hair", correct ? "border-ok" : "border-ng");
-    answered(
+    answered({
       correct,
-      correct ? null : h("div", null, jpText(q.jp), h("p", { class: "mt-0.5 text-sm text-ink/75" }, q.zh)),
-    );
+      grade: correct ? "good" : "again",
+      correction: correct ? undefined : h("div", null, jpText(q.jp), h("p", { class: "mt-0.5 text-sm text-ink/75" }, q.zh)),
+    });
   }
 
   surface.main.replaceChildren(

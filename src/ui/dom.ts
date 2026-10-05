@@ -48,6 +48,8 @@ const ICONS = {
   retry: '<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>',
   pin: '<path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/>',
   play: '<polygon points="5 3 19 12 5 21 5 3"/>',
+  repeat:
+    '<polyline points="17 1 21 5 17 9"/><path d="M3 11V9a4 4 0 0 1 4-4h14"/><polyline points="7 23 3 19 7 15"/><path d="M21 13v2a4 4 0 0 1-4 4H3"/>',
 } satisfies Record<string, string>;
 
 export function icon(name: keyof typeof ICONS, cls = "h-5 w-5"): SVGSVGElement {

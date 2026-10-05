@@ -62,6 +62,11 @@ export interface Lesson {
   patterns: Pattern[];
   dialogue?: Dialogue;
   exercises: Exercise[];
+  /**
+   * What enters daily review: everything (default), or only the words — for
+   * pronunciation lessons whose examples are sound demos, not sentences to learn.
+   */
+  review?: "words";
 }
 
 export interface Unit {

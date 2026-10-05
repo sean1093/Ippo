@@ -1,4 +1,5 @@
 import { KANA_SECTIONS } from "../content/kana";
+import { studied } from "../learn/memory";
 import { kanaToRomaji, toKatakana } from "../lib/romaji";
 import { kanaQuestions } from "../quiz/questions";
 import { BUTTON, fill, h } from "./dom";
@@ -103,6 +104,7 @@ export function renderKanaQuiz(root: HTMLElement, script: Script, sectionId: str
       onProgress: (cleared) => setProgress(cleared / questions.length),
       onFinish: (score) => {
         finished = true;
+        studied();
         window.scrollTo(0, 0);
         main.replaceChildren(resultView("練習完成！", `${SCRIPT_NAME[script]}・${section.title}`, score));
         footer.replaceChildren(
