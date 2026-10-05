@@ -1,6 +1,6 @@
 import { KATAKANA } from "../content/kana-progression";
 import { type Rng, shuffle } from "../quiz/drill";
-import { decoys, mc, type Question } from "../quiz/questions";
+import { type Ask, decoys, mc, type Question } from "../quiz/questions";
 import { type Card, CARDS } from "./cards";
 import { kanjiQuestion } from "./kanji";
 import type { Memory } from "./scheduler";
@@ -18,16 +18,25 @@ export function stageOf(card: Card, memory: Memory | undefined): Stage {
 /**
  * One question reviewing `card`, as hard as its memory allows. Each card kind
  * asks in its own way; a new kind adds a case here (the compiler insists).
+ * Returns null when the card cannot be asked at all right now: with listening
+ * off a kana is either read — which is its easiest stage — or heard, so it
+ * waits for a session the learner can hear.
  */
-export function reviewQuestion(card: Card, memory: Memory | undefined, pool: Iterable<Card>, rng: Rng): Question {
+export function reviewQuestion(
+  card: Card,
+  memory: Memory | undefined,
+  pool: Iterable<Card>,
+  rng: Rng,
+  ask: Ask = {},
+): Question | null {
   switch (card.kind) {
     case "word":
     case "sentence":
-      return meaningQuestion(card, stageOf(card, memory), pool, rng);
+      return meaningQuestion(card, stageOf(card, memory), pool, rng, ask);
     case "kana":
-      return kanaQuestion(card, stageOf(card, memory), pool, rng);
+      return ask.listening === false ? null : kanaQuestion(card, stageOf(card, memory), pool, rng);
     case "kanji":
-      return kanjiQuestion(card, stageOf(card, memory), rng);
+      return kanjiQuestion(card, stageOf(card, memory), rng, ask);
     default: {
       const unhandled: never = card.kind;
       throw new Error(`no review question for card kind ${String(unhandled)}`);
@@ -37,16 +46,18 @@ export function reviewQuestion(card: Card, memory: Memory | undefined, pool: Ite
 
 /**
  * Pick what a word or sentence means: heard only, or shown and heard. Wrong
- * options are cards of the same kind, from the same lesson first.
+ * options are cards of the same kind, from the same lesson first. With
+ * listening off the "hear it" stage is asked by sight instead.
  */
-export function meaningQuestion(card: Card, stage: Stage, pool: Iterable<Card>, rng: Rng): Question {
+export function meaningQuestion(card: Card, stage: Stage, pool: Iterable<Card>, rng: Rng, ask: Ask = {}): Question {
   if (stage === "say") return { kind: "recall", zh: card.zh, jp: card.jp, card: card.id };
+  const heard = stage === "listen" && ask.listening !== false;
   const peers = [...pool].filter((other) => other.kind === card.kind && other.id !== card.id);
   const sameSource = peers.filter((other) => other.source === card.source);
   const elsewhere = peers.filter((other) => other.source !== card.source);
   const others = decoys(card, [...shuffle(sameSource, rng), ...shuffle(elsewhere, rng)]);
   return mc(
-    stage === "listen"
+    heard
       ? { prompt: "聽聽看，是什麼意思？", jp: card.jp, mode: "listen", say: card.jp, card: card.id }
       : { prompt: "這是什麼意思？", jp: card.jp, mode: "show", say: card.jp, card: card.id },
     { text: card.zh },
@@ -80,15 +91,18 @@ function kanaQuestion(card: Card, stage: Stage, pool: Iterable<Card>, rng: Rng):
 
 /**
  * A review session over `ids` in mixed order (lessons interleaved). Ids that
- * no longer exist in the course — removed or edited content — are skipped.
+ * no longer exist in the course — removed or edited content — are skipped, and
+ * so are the cards that cannot be asked right now; they stay due.
  */
 export function reviewQuestions(
   ids: readonly string[],
   memoryOf: (id: string) => Memory | undefined,
   rng: Rng = Math.random,
+  ask: Ask = {},
 ): Question[] {
   return shuffle(ids, rng).flatMap((id) => {
     const card = CARDS.get(id);
-    return card ? [reviewQuestion(card, memoryOf(id), CARDS.values(), rng)] : [];
+    const question = card ? reviewQuestion(card, memoryOf(id), CARDS.values(), rng, ask) : null;
+    return question ? [question] : [];
   });
 }

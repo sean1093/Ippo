@@ -1,8 +1,8 @@
 import type { Grade } from "../../learn/scheduler";
 import type { Recall } from "../../quiz/questions";
-import { settings } from "../../state";
 import { BUTTON, h } from "../dom";
 import { jpText, play, slowButton, speakButton } from "../japanese";
+import { shouldAutoplay } from "../pause";
 import type { Answered, Surface } from "./shared";
 
 const GRADES: { grade: Grade; label: string; class: string }[] = [
@@ -44,7 +44,7 @@ export function renderRecall(q: Recall, surface: Surface, answered: Answered): v
         ),
       ),
     );
-    if (settings.autoplay) void play(q.jp, speaker);
+    if (shouldAutoplay()) void play(q.jp, speaker);
   }
 
   surface.main.replaceChildren(

@@ -3,10 +3,11 @@ import { bestChallenge, challengeQuestions, completeChallenge } from "../learn/c
 import { answer, memoryOf, studied } from "../learn/memory";
 import type { Question } from "../quiz/questions";
 import { progress } from "../state";
-import { BUTTON, fill, h, icon, LABEL } from "./dom";
+import { BUTTON, fill, focusHeading, h, icon, LABEL } from "./dom";
 import { runDrill } from "./drill";
 import { hush } from "./japanese";
-import { focusLayout, resultView, stars } from "./layout";
+import { focusLayout, resultView, skippedView, stars } from "./layout";
+import { listeningOff } from "./pause";
 
 /**
  * The unit challenge: everything the unit taught, mixed together. Open at any
@@ -14,7 +15,7 @@ import { focusLayout, resultView, stars } from "./layout";
  * answer feeds the review schedule, like any other drill.
  */
 export function renderChallenge(root: HTMLElement, unit: Unit): void {
-  let questions: Question[] = challengeQuestions(unit, memoryOf);
+  let questions: Question[] = challengeQuestions(unit, memoryOf, Math.random, { listening: !listeningOff() });
   let phase: "intro" | "quiz" | "done" = "intro";
 
   const { main, footer, setProgress } = focusLayout(root, () => {
@@ -62,6 +63,7 @@ export function renderChallenge(root: HTMLElement, unit: Unit): void {
       h("button", { type: "button", class: BUTTON.primary, onclick: start }, "開始挑戰"),
       h("a", { href: "#/", class: `${BUTTON.quiet} mt-1` }, "回到課程"),
     );
+    focusHeading(main);
   }
 
   function start(): void {
@@ -72,7 +74,7 @@ export function renderChallenge(root: HTMLElement, unit: Unit): void {
     runDrill(questions, {
       main,
       footer,
-      onProgress: (cleared) => setProgress(cleared / questions.length),
+      onProgress: (cleared, left) => setProgress(cleared / Math.max(1, left)),
       onFirstAnswer: (question, outcome) => {
         if (question.card) answer(question.card, outcome.grade, question.kind === "recall" ? "say" : "pick");
       },
@@ -80,13 +82,16 @@ export function renderChallenge(root: HTMLElement, unit: Unit): void {
     });
   }
 
-  function finish(score: number): void {
+  function finish(score: number, answered: number): void {
     phase = "done";
-    completeChallenge(unit.id, score);
-    studied();
+    // Every question skipped is not an attempt: no result, no study day.
+    if (answered > 0) {
+      completeChallenge(unit.id, score);
+      studied();
+    }
     setProgress(1);
     window.scrollTo(0, 0);
-    main.replaceChildren(resultView("單元挑戰完成！", unit.title, score));
+    main.replaceChildren(answered > 0 ? resultView("單元挑戰完成！", unit.title, score) : skippedView(unit.title));
     fill(
       footer,
       h(
@@ -95,7 +100,7 @@ export function renderChallenge(root: HTMLElement, unit: Unit): void {
           type: "button",
           class: BUTTON.primary,
           onclick: () => {
-            questions = challengeQuestions(unit, memoryOf);
+            questions = challengeQuestions(unit, memoryOf, Math.random, { listening: !listeningOff() });
             start();
           },
         },
@@ -104,6 +109,7 @@ export function renderChallenge(root: HTMLElement, unit: Unit): void {
       ),
       h("a", { href: "#/", class: `${BUTTON.secondary} mt-3` }, "回到課程"),
     );
+    focusHeading(main);
   }
 
   intro();

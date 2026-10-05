@@ -17,14 +17,14 @@ export function shuffle<T>(items: readonly T[], rng: Rng = Math.random): T[] {
  * answered correctly, and the score counts first-try answers.
  */
 export class Drill<Q> {
-  readonly total: number;
-  private readonly queue: Q[];
+  private queue: Q[];
   private readonly missed = new Set<Q>();
   #cleared = 0;
+  #total: number;
 
   constructor(questions: readonly Q[]) {
     this.queue = [...questions];
-    this.total = questions.length;
+    this.#total = questions.length;
   }
 
   get current(): Q | undefined {
@@ -35,6 +35,11 @@ export class Drill<Q> {
     return this.queue.length === 0;
   }
 
+  /** Questions still part of this drill; skipping takes questions out of it for good. */
+  get total(): number {
+    return this.#total;
+  }
+
   /** Questions answered correctly so far, for the progress bar. */
   get cleared(): number {
     return this.#cleared;
@@ -42,8 +47,8 @@ export class Drill<Q> {
 
   /** Percentage of questions answered right on the first try. */
   get score(): number {
-    if (this.total === 0) return 100;
-    return Math.round((100 * (this.total - this.missed.size)) / this.total);
+    if (this.#total === 0) return 100;
+    return Math.round((100 * (this.#total - this.missed.size)) / this.#total);
   }
 
   answer(correct: boolean): void {
@@ -55,5 +60,22 @@ export class Drill<Q> {
       this.missed.add(question);
       this.queue.push(question);
     }
+  }
+
+  /**
+   * Drops the queued questions matching `also` — 「現在不方便聽」 takes out the
+   * whole kind, not one question at a time — and, without a predicate, just the
+   * current question. A current question that does not match stays: the row
+   * may be tapped after its listening question was answered, when the current
+   * one is already the next question. Skipped questions leave the drill: they
+   * are not scored, and the progress counts only what is left.
+   */
+  skip(also?: (question: Q) => boolean): void {
+    const current = this.queue[0];
+    if (current === undefined) return;
+    const dropped = new Set<Q>(also === undefined ? [current] : this.queue.filter(also));
+    for (const question of dropped) this.missed.delete(question);
+    this.queue = this.queue.filter((question) => !dropped.has(question));
+    this.#total -= dropped.size;
   }
 }

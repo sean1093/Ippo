@@ -33,6 +33,40 @@ export function fill(parent: Element, ...children: Child[]): void {
   append(parent, children);
 }
 
+/** The one live region; created on the first announcement and never removed. */
+let liveRegion: HTMLElement | null = null;
+
+/**
+ * Says `text` to a screen reader without showing it: what a sighted learner
+ * reads from colour and position. One polite region for the whole app, so two
+ * announcements never race.
+ */
+export function announce(text: string): void {
+  if (!liveRegion) {
+    liveRegion = h("div", { class: "sr-only", "aria-live": "polite", "aria-atomic": "true" });
+    document.body.append(liveRegion);
+  }
+  const region = liveRegion;
+  // The same text twice in a row is not a change, and would stay unread:
+  // clear it, then set it once the empty value has been seen.
+  region.textContent = "";
+  requestAnimationFrame(() => {
+    region.textContent = text;
+  });
+}
+
+/**
+ * Moves focus to the heading of a screen that has just replaced another, so
+ * the keyboard and the screen reader start where the new content does instead
+ * of falling back to `<body>`. The region itself takes focus when it has no
+ * heading, e.g. a lesson's word card.
+ */
+export function focusHeading(region: HTMLElement): void {
+  const target = region.querySelector<HTMLElement>("h1, h2") ?? region;
+  target.tabIndex = -1;
+  target.focus({ preventScroll: true });
+}
+
 /** Stroke icons from Feather (MIT), drawn on a 24×24 grid. */
 const ICONS = {
   speaker:
@@ -65,9 +99,9 @@ const BUTTON_BASE =
 
 /** Shared button looks. */
 export const BUTTON = {
-  primary: `${BUTTON_BASE} bg-ai text-white shadow-sm`,
-  ok: `${BUTTON_BASE} bg-ok text-white shadow-sm`,
-  ng: `${BUTTON_BASE} bg-ng text-white shadow-sm`,
+  primary: `${BUTTON_BASE} bg-ai text-on-accent shadow-sm`,
+  ok: `${BUTTON_BASE} bg-ok text-on-accent shadow-sm`,
+  ng: `${BUTTON_BASE} bg-ng text-on-accent shadow-sm`,
   secondary: `${BUTTON_BASE} bg-card text-ink ring-1 ring-hair`,
   quiet: "flex w-full items-center justify-center gap-1 rounded-xl px-4 py-3 text-sm font-medium text-muted",
 };

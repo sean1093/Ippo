@@ -1,11 +1,13 @@
 import type { Dialogue } from "../../../content/types";
 import { fill, h } from "../../dom";
 import { jpText, speakButton } from "../../japanese";
+import { listeningOff, pauseRow } from "../../pause";
 import { bubbleRow, type DialogueMode, pill, playAllButton, type Row } from "./shared";
 
 /**
  * 先聽懂: the text is hidden, so the first pass is done with the ears only.
- * Each line opens on its own once the learner has had a guess.
+ * Each line opens on its own once the learner has had a guess. With listening
+ * off there is nothing worth hiding: the whole conversation is shown as text.
  */
 export function hearMode(dialogue: Dialogue): DialogueMode {
   const reveals: (() => void)[] = [];
@@ -27,11 +29,22 @@ export function hearMode(dialogue: Dialogue): DialogueMode {
     return { ...row, button };
   });
 
+  const hint = h("p", { class: "text-sm leading-relaxed text-muted" });
+  const render = (): void => {
+    const off = listeningOff();
+    hint.textContent = off
+      ? "現在不方便聽，所以文字全部打開了。方便聽的時候再回來，用耳朵聽一次。"
+      : "先不看字，聽聽看他們在說什麼。聽懂了再打開文字對答案。";
+    if (off) for (const reveal of reveals) reveal();
+  };
+  render();
+
   return {
     el: h(
       "div",
       { class: "pop" },
-      h("p", { class: "text-sm leading-relaxed text-muted" }, "先不看字，聽聽看他們在說什麼。聽懂了再打開文字對答案。"),
+      hint,
+      pauseRow("listen", render),
       h(
         "div",
         { class: "mt-3 flex gap-2" },

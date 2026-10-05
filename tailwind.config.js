@@ -15,6 +15,8 @@ export default {
         ink: token("ink"),
         muted: token("muted"),
         hair: token("hair"),
+        // Text and icons on a filled accent; the themes pick white or near-black.
+        "on-accent": token("on-accent"),
         // 藍 indigo: actions. 朱 vermilion: the brand mark.
         ai: { DEFAULT: token("ai"), soft: token("ai-soft") },
         shu: { DEFAULT: token("shu"), soft: token("shu-soft") },

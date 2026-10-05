@@ -51,7 +51,7 @@ export function tabLayout(root: HTMLElement, active: Tab): HTMLElement {
             count > 0 &&
               h(
                 "span",
-                { class: "absolute -right-2.5 -top-1.5 min-w-[1.25rem] rounded-full bg-shu px-1 text-center text-[0.65rem] font-bold leading-5 text-white" },
+                { class: "absolute -right-2.5 -top-1.5 min-w-[1.25rem] rounded-full bg-shu px-1 text-center text-[0.65rem] font-bold leading-5 text-on-accent" },
                 count > 99 ? "99+" : String(count),
               ),
           ),
@@ -106,6 +106,24 @@ export function stars(score: number, size = "h-4 w-4"): HTMLElement {
     "span",
     { class: "flex gap-0.5", "aria-label": `${earned} 顆星` },
     [0, 1, 2].map((i) => icon("star", `${size} ${i < earned ? "fill-current text-amber-400" : "text-hair"}`)),
+  );
+}
+
+/**
+ * A drill in which every question was skipped, e.g. a listening quiz paused
+ * halfway. There is nothing to score, and nothing is recorded.
+ */
+export function skippedView(subtitle: string): HTMLElement {
+  return h(
+    "div",
+    { class: "pop flex flex-col items-center pt-10 text-center" },
+    h("h1", { class: "text-2xl font-bold" }, "這次沒有作答"),
+    h("p", { class: "mt-1 text-muted" }, subtitle),
+    h(
+      "p",
+      { class: "mt-8 max-w-xs text-sm leading-relaxed text-ink/80" },
+      "題目都先跳過了，所以這次不計成績，也不會留下紀錄。方便聽的時候再回來做一次。",
+    ),
   );
 }
 

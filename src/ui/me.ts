@@ -4,7 +4,7 @@ import { answer, introduce, studied } from "../learn/memory";
 import { starredIds } from "../learn/phrasebook";
 import { CITIES, currentProfile, JOBS, kanaName, type Profile, saveProfile, selfIntro, SURNAMES } from "../learn/profile";
 import type { Question } from "../quiz/questions";
-import { BUTTON, fill, h, icon, LABEL } from "./dom";
+import { BUTTON, fill, focusHeading, h, icon, LABEL } from "./dom";
 import { runDrill } from "./drill";
 import { hush, jpText, playSequence, speakButton } from "./japanese";
 import { focusLayout, resultView } from "./layout";
@@ -28,7 +28,7 @@ export function renderMe(main: HTMLElement, editing: boolean): void {
     h("p", { class: "mt-1 text-sm text-muted" }, "你的自我介紹、旅行時想說的話，都收在這裡。"),
     profile ? introCard(selfIntro(profile)) : introPrompt(),
     linkRow("旅行小抄", starred > 0 ? `${starred} 句` : "還沒有收藏的句子", "#/phrasebook", "pin"),
-    linkRow("設定", "拼音、讀音、發音與學習紀錄", "#/settings", "sliders"),
+    linkRow("設定", "外觀、拼音、發音與學習紀錄", "#/settings", "sliders"),
   );
 }
 
@@ -63,7 +63,7 @@ function introCard(lines: Example[]): HTMLElement {
     "button",
     {
       type: "button",
-      class: "inline-flex items-center gap-2 rounded-full bg-ai px-4 py-2 text-sm font-semibold text-white active:scale-95",
+      class: "inline-flex items-center gap-2 rounded-full bg-ai px-4 py-2 text-sm font-semibold text-on-accent active:scale-95",
     },
     icon("play", "h-4 w-4"),
     playLabel,
@@ -279,6 +279,7 @@ export function renderIntroDrill(root: HTMLElement): void {
         h("a", { href: "#/me", class: BUTTON.primary }, "回到我的"),
         h("a", { href: "#/intro", class: `${BUTTON.quiet} mt-1`, onclick: again }, "再練一次"),
       );
+      focusHeading(main);
     },
   });
 

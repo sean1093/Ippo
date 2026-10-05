@@ -1,17 +1,26 @@
-import { COURSE, LESSONS } from "../content/course";
+import { COURSE, LESSONS, lessonsFor } from "../content/course";
+import { lessonMinutes } from "../content/estimate";
 import type { Unit } from "../content/types";
 import { bestChallenge } from "../learn/challenge";
 import { currentDue } from "../learn/memory";
-import { progress } from "../state";
+import { resumePoint, savedResume } from "../learn/resume";
+import { progress, settings } from "../state";
 import { BUTTON, fill, h, icon } from "./dom";
 import { stars } from "./layout";
+import { lessonSteps } from "./lesson/steps";
 import { sessionLabel } from "./practice";
 
 /** The course path: progress, the next lesson to take, and every unit. */
 export function renderHome(main: HTMLElement): void {
   const finished = LESSONS.filter((lesson) => progress[lesson.id]).length;
-  const next = LESSONS.find((lesson) => !progress[lesson.id]);
+  const next = lessonsFor(settings.knowsKana).find((lesson) => !progress[lesson.id]);
   const due = currentDue().length;
+  // Carrying on where the learner stopped comes before starting the next lesson —
+  // unless that lesson is already finished and was only reopened to look something up.
+  const saved = savedResume();
+  const paused = saved && !progress[saved.lesson] ? LESSONS.find((lesson) => lesson.id === saved.lesson) : undefined;
+  const pausedSteps = paused ? lessonSteps(paused).length : 0;
+  const pausedAt = paused ? resumePoint(paused.id, pausedSteps) : null;
   let number = 0;
 
   fill(
@@ -35,13 +44,13 @@ export function renderHome(main: HTMLElement): void {
     due > 0 &&
       h(
         "a",
-        { href: "#/review", class: "mt-6 flex items-center gap-3 rounded-2xl bg-ai p-4 text-white shadow-sm transition active:scale-[0.99]" },
-        h("span", { class: "flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/15" }, icon("repeat")),
+        { href: "#/review", class: "mt-6 flex items-center gap-3 rounded-2xl bg-ai p-4 text-on-accent shadow-sm transition active:scale-[0.99]" },
+        h("span", { class: "flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-on-accent/15" }, icon("repeat")),
         h(
           "span",
           { class: "min-w-0 flex-1" },
           h("span", { class: "block font-semibold" }, `今天要複習 ${due} 張`),
-          h("span", { class: "block text-sm text-white/80" }, `${sessionLabel(due)}・先複習，再上新課`),
+          h("span", { class: "block text-sm text-on-accent/80" }, `${sessionLabel(due)}・先複習，再上新課`),
         ),
         icon("next"),
       ),
@@ -59,16 +68,26 @@ export function renderHome(main: HTMLElement): void {
         { class: "mt-3 h-2 overflow-hidden rounded-full bg-hair" },
         h("div", { class: "h-full rounded-full bg-ok", style: `width: ${(100 * finished) / LESSONS.length}%` }),
       ),
-      next
+      paused && pausedAt !== null
         ? h(
             "a",
-            { href: `#/lesson/${next.id}`, class: `${due > 0 ? BUTTON.secondary : BUTTON.primary} mt-4` },
-            finished === 0 ? "從第 1 課開始" : `繼續：第 ${LESSONS.indexOf(next) + 1} 課 ${next.title}`,
+            { href: `#/lesson/${paused.id}`, class: `${due > 0 ? BUTTON.secondary : BUTTON.primary} mt-4` },
+            `繼續第 ${LESSONS.indexOf(paused) + 1} 課（${pausedAt === pausedSteps ? "測驗" : `第 ${pausedAt + 1} / ${pausedSteps} 步`}）`,
             icon("next"),
           )
-        : h("p", { class: "mt-4 text-sm leading-relaxed" }, "全部課程都完成了！隨時可以回去任何一課複習或再做測驗。"),
+        : next
+          ? h(
+              "a",
+              { href: `#/lesson/${next.id}`, class: `${due > 0 ? BUTTON.secondary : BUTTON.primary} mt-4` },
+              finished === 0
+                ? `從第 ${LESSONS.indexOf(next) + 1} 課開始`
+                : `繼續：第 ${LESSONS.indexOf(next) + 1} 課 ${next.title}`,
+              icon("next"),
+            )
+          : h("p", { class: "mt-4 text-sm leading-relaxed" }, "全部課程都完成了！隨時可以回去任何一課複習或再做測驗。"),
     ),
     finished === 0 &&
+      !settings.knowsKana &&
       h(
         "section",
         { class: "mt-4 rounded-2xl bg-shu-soft p-4 text-sm leading-relaxed" },
@@ -94,12 +113,12 @@ export function renderHome(main: HTMLElement): void {
             const record = progress[lesson.id];
             const isNext = lesson === next;
             const badge = record
-              ? h("span", { class: "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ok text-white" }, icon("check", "h-5 w-5"))
+              ? h("span", { class: "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ok text-on-accent" }, icon("check", "h-5 w-5"))
               : h(
                   "span",
                   {
                     class: `flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
-                      isNext ? "bg-ai text-white ring-4 ring-ai-soft" : "bg-paper text-muted ring-1 ring-hair"
+                      isNext ? "bg-ai text-on-accent ring-4 ring-ai-soft" : "bg-paper text-muted ring-1 ring-hair"
                     }`,
                   },
                   String(number),
@@ -119,7 +138,11 @@ export function renderHome(main: HTMLElement): void {
                   "span",
                   { class: "min-w-0 flex-1" },
                   h("span", { class: "block font-semibold" }, lesson.title),
-                  h("span", { class: "block truncate text-sm text-muted" }, lesson.goal),
+                  h(
+                    "span",
+                    { class: "block truncate text-sm text-muted" },
+                    `約 ${lessonMinutes(lesson)} 分鐘・${lesson.goal}`,
+                  ),
                 ),
                 record ? stars(record.best) : isNext && h("span", { class: "shrink-0 rounded-full bg-ai-soft px-2.5 py-1 text-xs font-semibold text-ai" }, "下一課"),
                 icon("next", "h-4 w-4 shrink-0 text-hair"),
@@ -150,7 +173,7 @@ function challengeRow(unit: Unit): HTMLElement {
     },
     h(
       "span",
-      { class: "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-shu text-white" },
+      { class: "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-shu text-on-accent" },
       icon("star", "h-5 w-5"),
     ),
     h(
