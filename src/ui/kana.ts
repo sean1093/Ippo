@@ -2,7 +2,7 @@ import { KANA_SECTIONS } from "../content/kana";
 import { kanaToRomaji, toKatakana } from "../lib/romaji";
 import { kanaQuestions } from "../quiz/questions";
 import { BUTTON, fill, h } from "./dom";
-import { runDrill } from "./drill-view";
+import { runDrill } from "./drill";
 import { play } from "./japanese";
 import { focusLayout, resultView } from "./layout";
 
@@ -19,7 +19,7 @@ export function renderKana(main: HTMLElement, script: Script): void {
       {
         href: `#/kana/${id}`,
         class: `flex-1 rounded-lg py-2 text-center text-sm font-semibold transition ${
-          id === script ? "bg-white text-ink shadow-sm" : "text-muted"
+          id === script ? "bg-card text-ink shadow-sm" : "text-muted"
         }`,
         "aria-current": id === script && "page",
       },
@@ -64,7 +64,7 @@ export function renderKana(main: HTMLElement, script: Script): void {
               {
                 type: "button",
                 class:
-                  "flex aspect-square flex-col items-center justify-center rounded-xl bg-white ring-1 ring-hair transition active:scale-95",
+                  "flex aspect-square flex-col items-center justify-center rounded-xl bg-card ring-1 ring-hair transition active:scale-95",
                 "aria-label": `${kana}，${kanaToRomaji(kana)}`,
               },
               h("span", { lang: "ja", class: `${cell.length > 1 ? "text-xl" : "text-2xl"} leading-none` }, kana),

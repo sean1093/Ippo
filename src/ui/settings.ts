@@ -1,6 +1,5 @@
 import { japaneseVoices, voiceStatus } from "../lib/speech";
-import type { Settings } from "../lib/store";
-import { progress, resetProgress, settings, updateSettings } from "../state";
+import { progress, resetProgress, type Settings, settings, updateSettings } from "../state";
 import { type Child, h, icon } from "./dom";
 import { play } from "./japanese";
 
@@ -79,7 +78,7 @@ function card(title: string, ...rows: Child[]): HTMLElement {
     "section",
     { class: "mt-6" },
     h("h2", { class: "px-1 text-sm font-semibold text-muted" }, title),
-    h("div", { class: "mt-2 divide-y divide-hair rounded-2xl bg-white px-4 shadow-sm ring-1 ring-hair" }, rows),
+    h("div", { class: "mt-2 divide-y divide-hair rounded-2xl bg-card px-4 shadow-sm ring-1 ring-hair" }, rows),
   );
 }
 
@@ -96,6 +95,7 @@ function toggle(key: "romaji" | "furigana" | "autoplay", title: string, hint: st
     { class: "flex cursor-pointer items-center justify-between gap-4 py-3" },
     h("span", null, h("span", { class: "block font-medium" }, title), h("span", { class: "mt-0.5 block text-sm text-muted" }, hint)),
     input,
+    // The knob stays white in every theme, like a native switch; only the track takes theme colours.
     h("span", {
       "aria-hidden": "true",
       class:
@@ -123,7 +123,7 @@ function rateRow(): HTMLElement {
     buttons.forEach((button, i) => {
       const on = RATES[i]?.value === settings.rate;
       button.setAttribute("aria-pressed", String(on));
-      button.className = `flex-1 rounded-lg py-2 text-sm font-semibold transition ${on ? "bg-white text-ink shadow-sm" : "text-muted"}`;
+      button.className = `flex-1 rounded-lg py-2 text-sm font-semibold transition ${on ? "bg-card text-ink shadow-sm" : "text-muted"}`;
     });
   paint();
   return h(

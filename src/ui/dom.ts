@@ -64,6 +64,9 @@ export const BUTTON = {
   primary: `${BUTTON_BASE} bg-ai text-white shadow-sm`,
   ok: `${BUTTON_BASE} bg-ok text-white shadow-sm`,
   ng: `${BUTTON_BASE} bg-ng text-white shadow-sm`,
-  secondary: `${BUTTON_BASE} bg-white text-ink ring-1 ring-hair`,
+  secondary: `${BUTTON_BASE} bg-card text-ink ring-1 ring-hair`,
   quiet: "flex w-full items-center justify-center gap-1 rounded-xl px-4 py-3 text-sm font-medium text-muted",
 };
+
+/** Small grey caption above a card, e.g. 「單字 1 / 7」. */
+export const LABEL = "text-sm font-semibold text-muted";

@@ -28,7 +28,7 @@ export function renderHome(main: HTMLElement): void {
     ),
     h(
       "section",
-      { class: "mt-6 rounded-2xl bg-white p-5 shadow-sm ring-1 ring-hair" },
+      { class: "mt-6 rounded-2xl bg-card p-5 shadow-sm ring-1 ring-hair" },
       h(
         "div",
         { class: "flex items-baseline justify-between" },
@@ -69,7 +69,7 @@ export function renderHome(main: HTMLElement): void {
         h("p", { class: "text-sm text-muted" }, unit.summary),
         h(
           "ol",
-          { class: "mt-3 divide-y divide-hair overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-hair" },
+          { class: "mt-3 divide-y divide-hair overflow-hidden rounded-2xl bg-card shadow-sm ring-1 ring-hair" },
           unit.lessons.map((lesson) => {
             number += 1;
             const record = progress[lesson.id];

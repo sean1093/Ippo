@@ -101,6 +101,8 @@ src/
 tests/       單元測試與內容檢查
 ```
 
+程式怎麼分層、新增課程／題型／頁面／設定／儲存資料各要改哪裡，見 [`docs/architecture.md`](docs/architecture.md)。Pull request 會自動跑測試與建置。
+
 ## 部署
 
 推到 `main` 後，GitHub Actions（`.github/workflows/pages.yml`）會跑測試、打包並部署到 GitHub Pages。第一次使用請到 repo 的 **Settings → Pages → Source** 選 **GitHub Actions**。路由全部走網址的 `#`，所以放在任何子路徑都能運作。

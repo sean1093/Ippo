@@ -111,7 +111,7 @@ export function slowButton(markup: Jp): HTMLButtonElement {
     {
       type: "button",
       class:
-        "inline-flex h-11 items-center gap-1.5 rounded-full bg-white px-4 text-sm font-semibold text-ai ring-1 ring-hair transition active:scale-95",
+        "inline-flex h-11 items-center gap-1.5 rounded-full bg-card px-4 text-sm font-semibold text-ai ring-1 ring-hair transition active:scale-95",
       "aria-label": `慢速播放「${plain(markup)}」`,
     },
     icon("speaker", "h-4 w-4"),

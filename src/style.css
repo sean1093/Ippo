@@ -2,6 +2,23 @@
 @tailwind components;
 @tailwind utilities;
 
+/* Design tokens as "R G B" so Tailwind can add alpha. A theme overrides these and nothing else. */
+:root {
+  --paper: 251 248 243;
+  --card: 255 255 255;
+  --ink: 31 36 48;
+  --muted: 111 106 98;
+  --hair: 232 225 214;
+  --ai: 47 75 143;
+  --ai-soft: 233 238 248;
+  --shu: 217 72 59;
+  --shu-soft: 251 233 230;
+  --ok: 63 138 85;
+  --ok-soft: 229 243 233;
+  --ng: 194 65 59;
+  --ng-soft: 251 232 231;
+}
+
 html {
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
@@ -28,7 +45,7 @@ body {
 .jp rt {
   font-size: 0.5em;
   font-weight: 400;
-  color: theme("colors.muted");
+  color: rgb(var(--muted));
 }
 
 .no-furigana .jp rt {
@@ -42,7 +59,7 @@ body {
 .blank {
   display: inline-block;
   min-width: 2.5em;
-  border-bottom: 2px solid theme("colors.ai.DEFAULT");
+  border-bottom: 2px solid rgb(var(--ai));
 }
 
 .pb-safe {
@@ -66,7 +83,7 @@ body {
 
 @keyframes speaking {
   50% {
-    box-shadow: 0 0 0 6px theme("colors.ai.soft");
+    box-shadow: 0 0 0 6px rgb(var(--ai-soft));
   }
 }
 
