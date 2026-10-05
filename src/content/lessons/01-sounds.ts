@@ -4,6 +4,7 @@ export default {
   id: "sounds",
   title: "日文的聲音",
   goal: "唸出日文的五個母音，並認得日文是用哪三種文字寫的。",
+  review: "words",
   words: [
     {
       jp: "あ",

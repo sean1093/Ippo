@@ -59,6 +59,11 @@ describe("lessonQuestions", () => {
             expect([...q.tiles].sort()).toEqual([...q.answer, ...extra].sort());
             continue;
           }
+          if (q.kind === "recall") {
+            // A "say it" line is the learner's own line from the dialogue: something to say, never a blank.
+            expect(lesson.dialogue?.lines.some((line) => line.who === "B" && line.jp === q.jp)).toBe(true);
+            continue;
+          }
           // Two options that read or sound the same would be two right answers.
           const labels = q.options.map((o) => ("jp" in o ? `${plain(o.jp)}/${readings(o.jp).join("")}` : o.text));
           expect(new Set(labels).size).toBe(labels.length);

@@ -4,6 +4,7 @@ export default {
   id: "special-sounds",
   title: "長音、促音、拗音",
   goal: "聽出一拍的差別，不會把阿姨叫成奶奶、把醫院說成美容院。",
+  review: "words",
   words: [
     {
       jp: "おばさん",

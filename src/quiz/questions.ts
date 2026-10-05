@@ -1,5 +1,5 @@
-import type { Exercise, Jp, Lesson, Word } from "../content/types";
-import { readings, tiles } from "../lib/jp";
+import type { Exercise, Jp, Lesson } from "../content/types";
+import { plain, readings, tiles } from "../lib/jp";
 import { kanaToRomaji } from "../lib/romaji";
 import { type Rng, shuffle } from "./drill";
 
@@ -26,6 +26,8 @@ export interface Mc {
   explain?: string;
   /** Spoken once answered: the correct Japanese in full. */
   say: Jp;
+  /** The card this question reviews (see src/learn/cards.ts), if any. */
+  card?: string;
 }
 
 export interface Order {
@@ -37,24 +39,36 @@ export interface Order {
   /** The shuffled word bank, decoys included. */
   tiles: string[];
   explain?: string;
+  card?: string;
 }
 
-export type Question = Mc | Order;
+/** "Say it": the learner produces the Japanese for `zh`, then grades themselves against the answer. */
+export interface Recall {
+  kind: "recall";
+  zh: string;
+  jp: Jp;
+  card?: string;
+  explain?: string;
+}
+
+export type Question = Mc | Order | Recall;
 
 /** Generated vocabulary questions per lesson; the rest are hand-written exercises. */
 const VOCAB_QUESTIONS = 6;
+/** "Say it" questions per lesson, taken from the learner's own lines in the dialogue. */
+const RECALL_QUESTIONS = 2;
 const BLANK = "＿";
 
-function mc(fields: Omit<Mc, "kind" | "options" | "answer">, answer: Option, wrong: Option[], rng: Rng): Mc {
+export function mc(fields: Omit<Mc, "kind" | "options" | "answer">, answer: Option, wrong: Option[], rng: Rng): Mc {
   const options = shuffle([answer, ...wrong], rng);
   return { kind: "mc", ...fields, options, answer: options.indexOf(answer) };
 }
 
-/** Up to three candidates that differ from `word` and each other in both meaning and sound. */
-function decoys(word: Word, candidates: readonly Word[]): Word[] {
-  const glosses = new Set([word.zh]);
-  const sounds = new Set([readings(word.jp).join("")]);
-  const out: Word[] = [];
+/** Up to three candidates that differ from `item` and from each other in both meaning and sound. */
+export function decoys<T extends { jp: Jp; zh: string }>(item: T, candidates: readonly T[]): T[] {
+  const glosses = new Set([item.zh]);
+  const sounds = new Set([readings(item.jp).join("")]);
+  const out: T[] = [];
   for (const other of candidates) {
     const sound = readings(other.jp).join("");
     if (glosses.has(other.zh) || sounds.has(sound)) continue;
@@ -99,9 +113,14 @@ function exerciseQuestion(ex: Exercise, rng: Rng): Question {
 /**
  * The quiz for a lesson: generated vocabulary questions first (meaning,
  * listening, and Chinese → Japanese in rotation), then the hand-written
- * exercises in authored order. `earlier` supplies extra wrong answers.
+ * exercises in authored order, then "say it" lines from the dialogue.
+ * `earlier` supplies extra wrong answers.
  */
-export function lessonQuestions(lesson: Lesson, earlier: readonly Word[], rng: Rng = Math.random): Question[] {
+export function lessonQuestions(
+  lesson: Lesson,
+  earlier: readonly { jp: Jp; zh: string }[],
+  rng: Rng = Math.random,
+): Question[] {
   const kinds = shuffle(["meaning", "listen", "reverse"] as const, rng);
   const vocab = shuffle(lesson.words, rng)
     .slice(0, VOCAB_QUESTIONS)
@@ -110,28 +129,34 @@ export function lessonQuestions(lesson: Lesson, earlier: readonly Word[], rng: R
       switch (kinds[i % kinds.length]) {
         case "meaning":
           return mc(
-            { prompt: "這是什麼意思？", jp: word.jp, mode: "show", say: word.jp },
+            { prompt: "這是什麼意思？", jp: word.jp, mode: "show", say: word.jp, card: word.jp },
             { text: word.zh },
             others.map((o) => ({ text: o.zh })),
             rng,
           );
         case "listen":
           return mc(
-            { prompt: "聽聽看，是哪一個？", jp: word.jp, mode: "listen", say: word.jp },
+            { prompt: "聽聽看，是哪一個？", jp: word.jp, mode: "listen", say: word.jp, card: word.jp },
             { jp: word.jp },
             others.map((o) => ({ jp: o.jp })),
             rng,
           );
         default:
           return mc(
-            { prompt: "日文怎麼說？", zh: word.zh, mode: "show", say: word.jp },
+            { prompt: "日文怎麼說？", zh: word.zh, mode: "show", say: word.jp, card: word.jp },
             { jp: word.jp },
             others.map((o) => ({ jp: o.jp })),
             rng,
           );
       }
     });
-  return [...vocab, ...lesson.exercises.map((ex) => exerciseQuestion(ex, rng))];
+  // Mid-length lines first: a lone はい is no exercise, and a whole paragraph from memory is not a beginner's first step.
+  const lines = (lesson.dialogue?.lines ?? []).filter((line) => line.who === "B" && plain(line.jp).length > 1);
+  const fit = lines.filter((line) => plain(line.jp).length >= 4 && plain(line.jp).length <= 20);
+  const recall = shuffle(fit.length >= RECALL_QUESTIONS ? fit : lines, rng)
+    .slice(0, RECALL_QUESTIONS)
+    .map((line): Recall => ({ kind: "recall", zh: line.zh, jp: line.jp, card: line.jp }));
+  return [...vocab, ...lesson.exercises.map((ex) => exerciseQuestion(ex, rng)), ...recall];
 }
 
 /** Alternating "read the kana" and "hear and pick the kana" questions over `pool`. */

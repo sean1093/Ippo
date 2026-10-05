@@ -1,10 +1,21 @@
+import { currentDue } from "../learn/memory";
 import { h, icon } from "./dom";
 
-export type Tab = "learn" | "kana" | "settings";
+export type Tab = "learn" | "practice" | "kana" | "settings";
+
+interface TabEntry {
+  id: Tab;
+  href: string;
+  label: string;
+  glyph: () => Node;
+  /** A count worth a glance, shown on the icon when above zero. */
+  badge?: () => number;
+}
 
 /** The bottom tab bar, in order. A new top-level section is one entry here plus its page in main.ts. */
-const TABS: { id: Tab; href: string; label: string; glyph: () => Node }[] = [
+const TABS: TabEntry[] = [
   { id: "learn", href: "#/", label: "學習", glyph: () => icon("book", "h-6 w-6") },
+  { id: "practice", href: "#/practice", label: "練習", glyph: () => icon("repeat", "h-6 w-6"), badge: () => currentDue().length },
   {
     id: "kana",
     href: "#/kana",
@@ -23,18 +34,30 @@ export function tabLayout(root: HTMLElement, active: Tab): HTMLElement {
     h(
       "div",
       { class: "flex" },
-      TABS.map((tab) =>
-        h(
+      TABS.map((tab) => {
+        const count = tab.badge?.() ?? 0;
+        return h(
           "a",
           {
             href: tab.href,
             class: `flex flex-1 flex-col items-center gap-1 pt-2.5 text-xs font-medium ${tab.id === active ? "text-ai" : "text-muted"}`,
             "aria-current": tab.id === active && "page",
+            "aria-label": count > 0 ? `${tab.label}（${count} 張待複習）` : undefined,
           },
-          tab.glyph(),
+          h(
+            "span",
+            { class: "relative" },
+            tab.glyph(),
+            count > 0 &&
+              h(
+                "span",
+                { class: "absolute -right-2.5 -top-1.5 min-w-[1.25rem] rounded-full bg-shu px-1 text-center text-[0.65rem] font-bold leading-5 text-white" },
+                count > 99 ? "99+" : String(count),
+              ),
+          ),
           tab.label,
-        ),
-      ),
+        );
+      }),
     ),
   );
   root.replaceChildren(h("div", { class: "flex min-h-dvh flex-col" }, main, nav));

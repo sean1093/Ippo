@@ -1,5 +1,7 @@
 import { LESSONS } from "../../content/course";
 import type { Lesson } from "../../content/types";
+import { lessonCards } from "../../learn/cards";
+import { answer, introduce, studied } from "../../learn/memory";
 import { lessonQuestions } from "../../quiz/questions";
 import { completeLesson, progress } from "../../state";
 import { BUTTON, fill, h, icon, LABEL } from "../dom";
@@ -10,7 +12,8 @@ import { lessonSteps } from "./steps";
 
 /**
  * One lesson, one screen at a time: intro → learning steps → quiz → result.
- * Progress is saved only when the quiz is finished.
+ * Progress is saved when the quiz is finished; each first answer also feeds
+ * the review schedule, and finishing enrols the rest of the lesson's cards.
  */
 export function renderLesson(root: HTMLElement, lesson: Lesson): void {
   const position = LESSONS.indexOf(lesson);
@@ -108,6 +111,9 @@ export function renderLesson(root: HTMLElement, lesson: Lesson): void {
       main,
       footer,
       onProgress: (cleared) => setProgress((steps.length + cleared) / total),
+      onFirstAnswer: (question, outcome) => {
+        if (question.card) answer(question.card, outcome.grade, question.kind === "recall" ? "say" : "pick");
+      },
       onFinish: finish,
     });
   }
@@ -115,6 +121,8 @@ export function renderLesson(root: HTMLElement, lesson: Lesson): void {
   function finish(score: number): void {
     phase = "done";
     completeLesson(lesson.id, score);
+    introduce(lessonCards(lesson).map((card) => card.id));
+    studied();
     setProgress(1);
     window.scrollTo(0, 0);
     main.replaceChildren(resultView(`完成第 ${position + 1} 課！`, lesson.title, score));

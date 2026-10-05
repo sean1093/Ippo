@@ -76,7 +76,11 @@ export function renderMc(q: Mc, surface: Surface, answered: Answered): void {
     reveal.classList.remove("hidden");
     const right = q.options[q.answer];
     const correct = picked === q.answer;
-    answered(correct, correct || !right ? null : optionContent(right, "md", true));
+    answered({
+      correct,
+      grade: correct ? "good" : "again",
+      correction: correct || !right ? undefined : optionContent(right, "md", true),
+    });
   }
 
   surface.main.replaceChildren(

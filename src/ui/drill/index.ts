@@ -5,11 +5,14 @@ import { BUTTON, h, icon } from "../dom";
 import { play } from "../japanese";
 import { renderMc } from "./mc";
 import { renderOrder } from "./order";
-import type { Answered, Surface } from "./shared";
+import { renderRecall } from "./recall";
+import type { Answered, Outcome, Surface } from "./shared";
 
 export interface DrillHost extends Surface {
   onProgress(cleared: number): void;
   onFinish(score: number): void;
+  /** The first attempt at each question — the honest signal, e.g. for the review schedule. */
+  onFirstAnswer?(question: Question, outcome: Outcome): void;
 }
 
 const PRAISE = ["答對了！", "很好！", "太棒了！", "正確！"];
@@ -17,6 +20,7 @@ const PRAISE = ["答對了！", "很好！", "太棒了！", "正確！"];
 /** Runs `questions` as a drill: a wrong answer comes back at the end until every question is right. */
 export function runDrill(questions: Question[], host: DrillHost): void {
   const drill = new Drill(questions);
+  const attempted = new Set<Question>();
   const next = () => {
     const question = drill.current;
     if (!question) {
@@ -24,11 +28,19 @@ export function runDrill(questions: Question[], host: DrillHost): void {
       return;
     }
     window.scrollTo(0, 0);
-    const answered: Answered = (correct, correction) => {
-      drill.answer(correct);
+    const answered: Answered = (outcome) => {
+      if (!attempted.has(question)) {
+        attempted.add(question);
+        host.onFirstAnswer?.(question, outcome);
+      }
+      drill.answer(outcome.correct);
       host.onProgress(drill.cleared);
+      if (outcome.silent) {
+        next();
+        return;
+      }
       if (settings.autoplay) void play(question.kind === "mc" ? question.say : question.jp);
-      feedback(host.footer, correct, correction, question.explain, next);
+      feedback(host.footer, outcome, question.explain, next);
     };
     renderQuestion(question, host, answered);
   };
@@ -44,6 +56,9 @@ function renderQuestion(question: Question, surface: Surface, answered: Answered
     case "order":
       renderOrder(question, surface, answered);
       break;
+    case "recall":
+      renderRecall(question, surface, answered);
+      break;
     default: {
       // A new Question kind without a renderer fails to compile here.
       const unhandled: never = question;
@@ -52,13 +67,8 @@ function renderQuestion(question: Question, surface: Surface, answered: Answered
   }
 }
 
-function feedback(
-  footer: HTMLElement,
-  correct: boolean,
-  correction: HTMLElement | null,
-  explain: string | undefined,
-  onContinue: () => void,
-): void {
+function feedback(footer: HTMLElement, outcome: Outcome, explain: string | undefined, onContinue: () => void): void {
+  const { correct, correction } = outcome;
   const proceed = h("button", { type: "button", class: correct ? BUTTON.ok : BUTTON.ng, onclick: onContinue }, "繼續");
   footer.replaceChildren(
     h(
