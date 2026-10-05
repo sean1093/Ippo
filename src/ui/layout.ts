@@ -2,29 +2,39 @@ import { h, icon } from "./dom";
 
 export type Tab = "learn" | "kana" | "settings";
 
+/** The bottom tab bar, in order. A new top-level section is one entry here plus its page in main.ts. */
+const TABS: { id: Tab; href: string; label: string; glyph: () => Node }[] = [
+  { id: "learn", href: "#/", label: "學習", glyph: () => icon("book", "h-6 w-6") },
+  {
+    id: "kana",
+    href: "#/kana",
+    label: "五十音",
+    glyph: () => h("span", { lang: "ja", class: "flex h-6 w-6 items-center justify-center text-xl font-bold leading-none" }, "あ"),
+  },
+  { id: "settings", href: "#/settings", label: "設定", glyph: () => icon("sliders", "h-6 w-6") },
+];
+
 /** Page with the bottom tab bar; returns the element to render the page into. */
 export function tabLayout(root: HTMLElement, active: Tab): HTMLElement {
   const main = h("main", { class: "pt-safe flex-1 px-5 pb-8" });
-  const tab = (id: Tab, href: string, label: string, glyph: Node) =>
-    h(
-      "a",
-      {
-        href,
-        class: `flex flex-col items-center gap-1 pt-2.5 text-xs font-medium ${id === active ? "text-ai" : "text-muted"}`,
-        "aria-current": id === active && "page",
-      },
-      glyph,
-      label,
-    );
   const nav = h(
     "nav",
     { class: "pb-safe sticky bottom-0 z-10 border-t border-hair bg-paper/95 backdrop-blur" },
     h(
       "div",
-      { class: "grid grid-cols-3" },
-      tab("learn", "#/", "學習", icon("book", "h-6 w-6")),
-      tab("kana", "#/kana", "五十音", h("span", { lang: "ja", class: "flex h-6 w-6 items-center justify-center text-xl font-bold leading-none" }, "あ")),
-      tab("settings", "#/settings", "設定", icon("sliders", "h-6 w-6")),
+      { class: "flex" },
+      TABS.map((tab) =>
+        h(
+          "a",
+          {
+            href: tab.href,
+            class: `flex flex-1 flex-col items-center gap-1 pt-2.5 text-xs font-medium ${tab.id === active ? "text-ai" : "text-muted"}`,
+            "aria-current": tab.id === active && "page",
+          },
+          tab.glyph(),
+          tab.label,
+        ),
+      ),
     ),
   );
   root.replaceChildren(h("div", { class: "flex min-h-dvh flex-col" }, main, nav));
@@ -92,7 +102,7 @@ export function resultView(title: string, subtitle: string, score: number): HTML
     h("p", { class: "mt-1 text-muted" }, subtitle),
     h(
       "div",
-      { class: "mt-8 rounded-2xl bg-white px-8 py-5 ring-1 ring-hair" },
+      { class: "mt-8 rounded-2xl bg-card px-8 py-5 ring-1 ring-hair" },
       h("p", { class: "text-4xl font-bold text-ai" }, `${score}%`),
       h("p", { class: "mt-1 text-sm text-muted" }, "一次就答對的比例"),
     ),
