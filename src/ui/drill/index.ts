@@ -44,6 +44,11 @@ function renderQuestion(question: Question, surface: Surface, answered: Answered
     case "order":
       renderOrder(question, surface, answered);
       break;
+    default: {
+      // A new Question kind without a renderer fails to compile here.
+      const unhandled: never = question;
+      throw new Error(`no renderer for question ${JSON.stringify(unhandled)}`);
+    }
   }
 }
 

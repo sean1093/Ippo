@@ -4,7 +4,6 @@
  * it; values saved before versioning existed are read as version 0.
  */
 export interface Store<T> {
-  readonly key: string;
   load(): T;
   save(value: T): void;
 }
@@ -21,7 +20,6 @@ export function defineStore<T>(
 ): Store<T> {
   const key = `ippo.${name}`;
   return {
-    key,
     load() {
       const saved = parseJson(read(key));
       const wrapped = asRecord(saved);

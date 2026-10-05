@@ -95,6 +95,7 @@ function toggle(key: "romaji" | "furigana" | "autoplay", title: string, hint: st
     { class: "flex cursor-pointer items-center justify-between gap-4 py-3" },
     h("span", null, h("span", { class: "block font-medium" }, title), h("span", { class: "mt-0.5 block text-sm text-muted" }, hint)),
     input,
+    // The knob stays white in every theme, like a native switch; only the track takes theme colours.
     h("span", {
       "aria-hidden": "true",
       class:
