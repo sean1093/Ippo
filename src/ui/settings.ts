@@ -1,5 +1,6 @@
 import { resetChallenges } from "../learn/challenge";
-import { resetMemory } from "../learn/memory";
+import { localDay, resetMemory } from "../learn/memory";
+import { backupSummary, createBackup, readBackup, restoreBackup } from "../lib/backup";
 import { japaneseVoices, voiceStatus } from "../lib/speech";
 import {
   progress,
@@ -13,6 +14,7 @@ import {
 } from "../state";
 import { type Child, h, icon } from "./dom";
 import { play } from "./japanese";
+import { voiceHelp } from "./voice-help";
 
 const ROMAJI_CHOICES: { label: string; value: RomajiMode }[] = [
   { label: "自動", value: "auto" },
@@ -50,7 +52,8 @@ export function renderSettings(main: HTMLElement): void {
     card("外觀", themeRow(), textSizeRow()),
     card("顯示", romajiRow(), toggle("furigana", "顯示漢字讀音", "在漢字上方用平假名標出讀法。")),
     card("發音", toggle("autoplay", "自動播放", "卡片和題目出現時，自動唸一次。"), rateRow(), voiceHost),
-    card("學習紀錄", resetRow()),
+    card("學習紀錄", backupRow(), resetRow()),
+    card("新手引導", guideRow()),
     h(
       "p",
       { class: "mt-8 text-center text-xs leading-relaxed text-muted" },
@@ -95,7 +98,7 @@ export function refreshVoices(): void {
   test.addEventListener("click", () => void play(SAMPLE, test));
   voiceHost.replaceChildren(
     h("div", { class: "py-3" }, h("p", { class: "font-medium" }, "日文語音"), picker, status !== "unsupported" && test),
-    help(status !== "ok"),
+    voiceHelp(status !== "ok"),
   );
 }
 
@@ -207,23 +210,99 @@ function rateRow(): HTMLElement {
   );
 }
 
-function help(open: boolean): HTMLElement {
-  const details = h(
-    "details",
+/** Shared look of the secondary actions in the 學習紀錄 card. */
+const ACTION = "rounded-xl px-4 py-2.5 text-sm font-semibold ring-1 active:bg-paper disabled:opacity-40";
+
+/**
+ * Learner data as a file: the only way to move progress to another phone, or
+ * to keep it before clearing the browser. The file is the raw stores, so a
+ * restore is exactly the backed-up device.
+ */
+function backupRow(): HTMLElement {
+  const note = h("p", { class: "mt-2 text-sm text-muted" }, "備份檔可以存到雲端或傳給自己，換手機時再匯入。");
+  const say = (text: string, bad = false): void => {
+    note.textContent = text;
+    note.className = `mt-2 text-sm ${bad ? "text-ng" : "text-muted"}`;
+  };
+  const picker = h("input", { type: "file", accept: "application/json,.json", class: "sr-only" });
+  picker.addEventListener("change", () => {
+    const file = picker.files?.[0];
+    // Reset first: picking the very same file again must still fire a change.
+    picker.value = "";
+    if (file) void importBackup(file, say);
+  });
+  return h(
+    "div",
     { class: "py-3" },
-    h("summary", { class: "cursor-pointer font-medium text-ai" }, "聽不到聲音？"),
+    h("p", { class: "font-medium" }, "備份與還原"),
     h(
-      "ul",
-      { class: "mt-2 list-disc space-y-1.5 pl-5 text-sm leading-relaxed text-ink/80" },
-      h("li", null, "先確認音量已打開；iPhone 請關閉靜音模式。"),
-      h("li", null, "iPhone／iPad：設定 → 輔助使用 → 朗讀內容 → 聲音 → 日文，下載一個語音（推薦「增強版」）。"),
-      h("li", null, "Android：設定 → 系統 → 語言 → 文字轉語音輸出 → Google 語音服務，安裝日文語音資料。"),
-      h("li", null, "Windows：設定 → 時間與語言 → 語音 → 新增語音 → 日文。"),
-      h("li", null, "安裝後重新整理這個頁面。"),
+      "div",
+      { class: "mt-3 flex gap-2" },
+      h("button", { type: "button", class: `${ACTION} ring-hair`, onclick: () => void exportBackup(say) }, "匯出備份"),
+      h("button", { type: "button", class: `${ACTION} ring-hair`, onclick: () => picker.click() }, "匯入備份"),
     ),
+    picker,
+    note,
   );
-  details.open = open;
-  return details;
+}
+
+async function exportBackup(say: (text: string, bad?: boolean) => void): Promise<void> {
+  const now = new Date();
+  const name = `ippo-backup-${localDay(now)}.json`;
+  const file = new File([JSON.stringify(createBackup(localStorage, now))], name, { type: "application/json" });
+  // Sharing keeps the file inside the phone's own flow (AirDrop, 雲端硬碟);
+  // iOS Safari has no visible Downloads folder, so this is the usable path there.
+  if (navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file] });
+    } catch (error) {
+      if ((error as DOMException | undefined)?.name !== "AbortError") say("匯出失敗，請再試一次。", true);
+    }
+    return;
+  }
+  const url = URL.createObjectURL(file);
+  const link = h("a", { href: url, download: name, class: "sr-only" });
+  document.body.append(link);
+  link.click();
+  link.remove();
+  // Revoking in the same task cancels the download in some browsers.
+  setTimeout(() => URL.revokeObjectURL(url));
+  say(`已匯出 ${name}。`);
+}
+
+async function importBackup(file: File, say: (text: string, bad?: boolean) => void): Promise<void> {
+  let backup;
+  try {
+    backup = readBackup(await file.text());
+  } catch (error) {
+    say(error instanceof Error ? error.message : "匯入失敗，請確認檔案。", true);
+    return;
+  }
+  const { lessons, cards } = backupSummary(backup);
+  const ok = window.confirm(
+    `這個備份有 ${lessons} 課的紀錄、${cards} 張複習卡片。\n匯入後，這台裝置現在的學習紀錄會被完全取代。`,
+  );
+  if (!ok) {
+    say("已取消匯入。");
+    return;
+  }
+  restoreBackup(localStorage, backup);
+  // Everything in memory was loaded from storage at startup; reload to pick up the restored data.
+  location.reload();
+}
+
+function guideRow(): HTMLElement {
+  return h(
+    "a",
+    { href: "#/welcome", class: "flex items-center justify-between gap-4 py-3.5" },
+    h(
+      "span",
+      null,
+      h("span", { class: "block font-medium" }, "重新看一次新手引導"),
+      h("span", { class: "mt-0.5 block text-sm text-muted" }, "課程怎麼進行、聲音聽不到怎麼辦。"),
+    ),
+    icon("next", "h-4 w-4 shrink-0 text-hair"),
+  );
 }
 
 function resetRow(): HTMLElement {

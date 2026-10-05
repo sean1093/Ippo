@@ -32,6 +32,10 @@ export interface Settings {
   speakOffUntil: number;
   theme: Theme;
   textSize: TextSize;
+  /** The learner has been through (or skipped) the first-run guide. */
+  welcomed: boolean;
+  /** The learner already reads kana, so the pronunciation unit is skipped. */
+  knowsKana: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -44,6 +48,8 @@ export const DEFAULT_SETTINGS: Settings = {
   speakOffUntil: 0,
   theme: "system",
   textSize: "standard",
+  welcomed: false,
+  knowsKana: false,
 };
 
 /** Saved settings over the defaults; malformed fields fall back individually. */
@@ -55,7 +61,7 @@ export function parseSettings(data: unknown): Settings {
   else if (typeof saved.romaji === "boolean") settings.romaji = saved.romaji ? "auto" : "off";
   if (THEMES.includes(saved.theme)) settings.theme = saved.theme as Theme;
   if (TEXT_SIZES.includes(saved.textSize)) settings.textSize = saved.textSize as TextSize;
-  for (const key of ["furigana", "autoplay", "micNoticeSeen"] as const) {
+  for (const key of ["furigana", "autoplay", "micNoticeSeen", "welcomed", "knowsKana"] as const) {
     const value = saved[key];
     if (typeof value === "boolean") settings[key] = value;
   }

@@ -74,5 +74,7 @@ export interface Unit {
   id: string;
   title: string;
   summary: string;
+  /** A unit a learner who already reads kana can leave out; the first-run guide and home honour it. */
+  skippableWithKana?: true;
   lessons: Lesson[];
 }

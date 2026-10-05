@@ -62,6 +62,30 @@ src/
 - `parse(data, savedVersion)` 必須對任何輸入都回傳合法的值（資料可能被手動改過，或來自舊版本）。
 - 要改資料格式時：把 `version` 加一，並在 `parse` 裡依 `savedVersion` 轉換舊格式。在加入版本號之前存的資料，`savedVersion` 是 0。
 
+### 備份與還原
+`src/lib/backup.ts` 把 localStorage 裡所有 `ippo.` 開頭的 key 原封不動包成一個檔案，所以**新增一個 store 不用改備份程式**：
+
+```jsonc
+{ "app": "ippo", "format": 1, "exportedAt": "2026-10-05T09:00:00.000Z",
+  "stores": { "ippo.progress": { "v": 1, "data": { … } }, "ippo.memory": { … } } }
+```
+
+- `createBackup(storage, now)` 收集、`readBackup(text)` 驗證（不是 JSON、`app`／`format` 不對、`stores` 不是物件、含有 `ippo.` 以外的 key 都丟出中文訊息的 `Error`）、`restoreBackup(storage, backup)` 先刪掉現有的 `ippo.` key 再寫入。
+- 還原是「換成備份當時的那台裝置」，所以備份裡沒有的 `ippo.` key 會被移除；`ippo.` 以外的 key 永遠不碰（同一個網域可能還有別的專案）。
+- `Storage` 是參數而不是直接用 `localStorage`，整組函式才能單元測試（`tests/backup.test.ts`）。
+- 畫面在設定頁的「學習紀錄」：手機上用 `navigator.share({ files })`，不支援就用 Blob URL 下載 `ippo-backup-YYYY-MM-DD.json`；匯入先 `confirm()` 顯示幾課幾張卡，還原後 `location.reload()`（記憶體裡的狀態都是啟動時從儲存讀進來的）。
+
+### 一課要多久
+`src/content/estimate.ts` 的 `lessonMinutes(lesson)` 從內容本身算出整數分鐘（最少 3 分鐘）：新假名、單字與例句、句型與例句、會話行數，再加上這一課會出幾題。課程改了估計就跟著改，不用手動維護。課程地圖的每一列顯示「約 N 分鐘・<目標>」，課程簡介的第一項是「大約 N 分鐘」。
+
+### 新手引導
+`src/ui/welcome.ts`（`#/welcome`，用 `focusLayout`，沒有分頁列）三個畫面：怎麼學、聽聽看、從哪裡開始。
+
+- `src/main.ts` 在第一次 `route()` 之前判斷：`!settings.welcomed`、沒有任何課程紀錄、而且網址是空的或 `#/` 時才 `location.replace("#/welcome")`。深連結（分享出去的某一課、書籤）永遠不會被攔截。
+- 「聽聽看」用 `play()` 唸一次こんにちは；`voiceStatus()` 說這台裝置沒有日文語音時，不等使用者按「聽不到」就直接展開解法。解法本身是 `src/ui/voice-help.ts`，設定頁與引導共用同一份，不要再抄一份。
+- 「我已經會五十音」會設 `knowsKana` 與 `romaji: "off"`，並跳到第一個非 `skippableWithKana` 單元的課。
+- `Unit.skippableWithKana`（目前只有 `sounds` 單元）＋ `lessonsFor(knowsKana)`（`src/content/course.ts`）決定「下一課」要從哪裡算；課程地圖仍然列出全部的課，只是不再推薦發音單元，首頁的「還不會五十音也沒關係」也會收起來。
+
 ### 新增設定
 在 `src/state.ts` 的 `Settings`、`DEFAULT_SETTINGS`、`parseSettings` 加欄位；畫面在 `src/ui/settings.ts`。需要套用到整個頁面的設定（例如 CSS 開關）寫在 `applySettings()`。
 
