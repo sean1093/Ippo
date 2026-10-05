@@ -98,3 +98,9 @@ export function recordPairTrial(category: string, correct: boolean): void {
   recordTrial(saved, category, correct);
   store.save(saved);
 }
+
+/** Part of 清除學習紀錄: the accuracy per category is a learning record too. */
+export function resetPairs(): void {
+  saved.categories = {};
+  store.save(saved);
+}

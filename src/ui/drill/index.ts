@@ -32,7 +32,10 @@ export function runDrill(questions: Question[], host: DrillHost): void {
       return;
     }
     window.scrollTo(0, 0);
+    /** Answered: the feedback is on screen, and its 繼續 decides when to move on. */
+    let settled = false;
     const answered: Answered = (outcome) => {
+      settled = true;
       if (!attempted.has(question)) {
         attempted.add(question);
         host.onFirstAnswer?.(question, outcome);
@@ -54,7 +57,7 @@ export function runDrill(questions: Question[], host: DrillHost): void {
           if (!listeningOff()) return;
           drill.skip(byEar);
           host.onProgress(drill.cleared, drill.total);
-          next();
+          if (!settled) next();
         }),
       );
     }

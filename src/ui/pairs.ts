@@ -66,7 +66,9 @@ export function renderPairsQuiz(root: HTMLElement, categoryId: string | undefine
     finished = false;
     setProgress(0);
     if (listeningOff()) {
-      // The whole exercise is a listening test: pause it and there is nothing to run.
+      // The whole exercise is a listening test: pause it and there is nothing to
+      // run — so nothing to lose by leaving, and no confirm on the way out.
+      finished = true;
       fill(
         main,
         h(

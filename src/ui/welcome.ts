@@ -1,7 +1,7 @@
 import { LESSONS, lessonsFor } from "../content/course";
 import { onVoicesChanged, voiceStatus } from "../lib/speech";
 import { type Settings, updateSettings } from "../state";
-import { BUTTON, type Child, fill, h, icon } from "./dom";
+import { BUTTON, type Child, fill, focusHeading, h, icon } from "./dom";
 import { jpText, play } from "./japanese";
 import { focusLayout } from "./layout";
 import { voiceHelp } from "./voice-help";
@@ -43,6 +43,8 @@ export function renderWelcome(root: HTMLElement): void {
   function go(to: number): void {
     screen = to;
     show();
+    // The pressed button is gone with the old screen; start reading at the new one.
+    focusHeading(main);
   }
 
   /** The actions, then 上一步 / step dots / 略過 on one quiet line. */
@@ -94,7 +96,7 @@ export function renderWelcome(root: HTMLElement): void {
       h(
         "div",
         { class: "pop pt-4" },
-        h("h1", { class: "text-3xl font-bold", tabindex: "-1" }, "怎麼學"),
+        h("h1", { class: "text-3xl font-bold" }, "怎麼學"),
         h("p", { class: "mt-2 leading-relaxed text-muted" }, "歡迎來到 Ippo。先用一分鐘看看這門課怎麼進行。"),
         h(
           "ul",
@@ -144,7 +146,7 @@ export function renderWelcome(root: HTMLElement): void {
       h(
         "div",
         { class: "pop pt-4" },
-        h("h1", { class: "text-3xl font-bold", tabindex: "-1" }, "聽聽看"),
+        h("h1", { class: "text-3xl font-bold" }, "聽聽看"),
         h("p", { class: "mt-2 leading-relaxed text-muted" }, "課程裡的日文由你的手機唸出來。先按按看，確認聽得到聲音。"),
         h(
           "div",
@@ -174,7 +176,7 @@ export function renderWelcome(root: HTMLElement): void {
       h(
         "div",
         { class: "pop pt-4" },
-        h("h1", { class: "text-3xl font-bold", tabindex: "-1" }, "從哪裡開始"),
+        h("h1", { class: "text-3xl font-bold" }, "從哪裡開始"),
         h("p", { class: "mt-2 leading-relaxed text-muted" }, "選一個就好，之後隨時可以回去上任何一課。"),
         h(
           "div",

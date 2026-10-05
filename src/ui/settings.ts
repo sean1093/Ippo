@@ -1,5 +1,6 @@
 import { resetChallenges } from "../learn/challenge";
 import { localDay, resetMemory } from "../learn/memory";
+import { resetPairs } from "../learn/pairs";
 import { clearResume } from "../learn/resume";
 import { backupSummary, createBackup, readBackup, restoreBackup } from "../lib/backup";
 import { japaneseVoices, voiceStatus } from "../lib/speech";
@@ -251,15 +252,17 @@ async function exportBackup(say: (text: string, bad?: boolean) => void): Promise
   const now = new Date();
   const name = `ippo-backup-${localDay(now)}.json`;
   const file = new File([JSON.stringify(createBackup(localStorage, now))], name, { type: "application/json" });
-  // Sharing keeps the file inside the phone's own flow (AirDrop, 雲端硬碟);
-  // iOS Safari has no visible Downloads folder, so this is the usable path there.
-  if (navigator.canShare?.({ files: [file] })) {
+  // On a phone, sharing keeps the file inside the phone's own flow (AirDrop,
+  // 雲端硬碟, 儲存到檔案) — iOS Safari has no visible Downloads folder. A
+  // computer's share menu has no "save", so there the download is the way.
+  if (matchMedia("(pointer: coarse)").matches && navigator.canShare?.({ files: [file] })) {
     try {
       await navigator.share({ files: [file] });
+      return;
     } catch (error) {
-      if ((error as DOMException | undefined)?.name !== "AbortError") say("匯出失敗，請再試一次。", true);
+      // Cancelling is not a failure; any other refusal means sharing is not available here.
+      if ((error as DOMException | undefined)?.name === "AbortError") return;
     }
-    return;
   }
   const url = URL.createObjectURL(file);
   const link = h("a", { href: url, download: name, class: "sr-only" });
@@ -324,6 +327,7 @@ function resetRow(): HTMLElement {
     resetProgress();
     resetMemory();
     resetChallenges();
+    resetPairs();
     clearResume();
     status.textContent = "學習紀錄已清除。";
     button.disabled = true;

@@ -65,6 +65,16 @@ describe("Drill.skip", () => {
     expect(drill.score).toBe(100);
   });
 
+  it("keeps a current question that is not of the skipped kind", () => {
+    // 「現在不方便聽」 tapped on the feedback of an answered listening question:
+    // the current question is already the next, sight-read one.
+    const drill = new Drill(["listen-a", "read", "listen-b"]);
+    drill.answer(true); // listen-a
+    drill.skip((question) => question.startsWith("listen"));
+    expect(drill.current).toBe("read");
+    expect(drill.total).toBe(2);
+  });
+
   it("a drill with everything skipped ends with nothing to record", () => {
     const drill = new Drill(["listen-a", "listen-b"]);
     drill.skip(() => true);

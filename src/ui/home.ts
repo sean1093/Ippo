@@ -15,9 +15,10 @@ export function renderHome(main: HTMLElement): void {
   const finished = LESSONS.filter((lesson) => progress[lesson.id]).length;
   const next = lessonsFor(settings.knowsKana).find((lesson) => !progress[lesson.id]);
   const due = currentDue().length;
-  // Carrying on where the learner stopped comes before starting the next lesson.
+  // Carrying on where the learner stopped comes before starting the next lesson —
+  // unless that lesson is already finished and was only reopened to look something up.
   const saved = savedResume();
-  const paused = saved ? LESSONS.find((lesson) => lesson.id === saved.lesson) : undefined;
+  const paused = saved && !progress[saved.lesson] ? LESSONS.find((lesson) => lesson.id === saved.lesson) : undefined;
   const pausedSteps = paused ? lessonSteps(paused).length : 0;
   const pausedAt = paused ? resumePoint(paused.id, pausedSteps) : null;
   let number = 0;

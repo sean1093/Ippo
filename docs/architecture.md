@@ -46,7 +46,7 @@ src/
 
 - `saveResume()`：播放器每進一個學習步驟就存一次，進入測驗時存 `steps.length`；`clearResume()` 在完成那一課時清掉，設定頁的「清除學習紀錄」也會清。
 - `resumePoint(lessonId, stepCount, now)` 回傳要接續的步驟或 null：超過 30 天就不再提（隔太久不如重上），步驟數會夾到那一課現在的步驟數（改版後內容會變），第 0 步等於從頭開始，不算進度。
-- 課程簡介用它顯示「從第 k 步繼續」／「繼續測驗」加上「從頭開始」；首頁的主要按鈕變成「繼續第 N 課（第 k / m 步）」。
+- 課程簡介用它顯示「從第 k 步繼續」／「繼續測驗」加上「從頭開始」；首頁的主要按鈕變成「繼續第 N 課（第 k / m 步）」。已經完成的課回去翻時也會留下位置，那時只有課程簡介會提供，首頁的主要按鈕照常指向下一課。
 - 因為位置留著了，離開學習步驟不再問；只有測驗會問「要離開測驗嗎？下次會從測驗開始。」
 
 ### 情境會話的四種模式
@@ -83,7 +83,7 @@ src/
 - `createBackup(storage, now)` 收集、`readBackup(text)` 驗證（不是 JSON、`app`／`format` 不對、`stores` 不是物件、含有 `ippo.` 以外的 key 都丟出中文訊息的 `Error`）、`restoreBackup(storage, backup)` 先刪掉現有的 `ippo.` key 再寫入。
 - 還原是「換成備份當時的那台裝置」，所以備份裡沒有的 `ippo.` key 會被移除；`ippo.` 以外的 key 永遠不碰（同一個網域可能還有別的專案）。
 - `Storage` 是參數而不是直接用 `localStorage`，整組函式才能單元測試（`tests/backup.test.ts`）。
-- 畫面在設定頁的「學習紀錄」：手機上用 `navigator.share({ files })`，不支援就用 Blob URL 下載 `ippo-backup-YYYY-MM-DD.json`；匯入先 `confirm()` 顯示幾課幾張卡，還原後 `location.reload()`（記憶體裡的狀態都是啟動時從儲存讀進來的）。
+- 畫面在設定頁的「學習紀錄」。匯出：觸控裝置（`pointer: coarse`）且 `navigator.canShare({ files })` 可用時走系統分享，因為 iOS 沒有看得到的下載資料夾；使用者取消（`AbortError`）就停在那裡，其他錯誤或電腦（分享選單沒有「儲存」）一律改用 Blob URL 下載 `ippo-backup-YYYY-MM-DD.json`。匯入：先 `confirm()` 顯示幾課幾張卡，還原後 `location.reload()`（記憶體裡的狀態都是啟動時從儲存讀進來的）。
 
 ### 一課要多久
 `src/content/estimate.ts` 的 `lessonMinutes(lesson)` 從內容本身算出整數分鐘（最少 3 分鐘）：新假名、單字與例句、句型與例句、會話行數，再加上這一課會出幾題。課程改了估計就跟著改，不用手動維護。課程地圖的每一列顯示「約 N 分鐘・<目標>」，課程簡介的第一項是「大約 N 分鐘」。
@@ -91,7 +91,7 @@ src/
 ### 新手引導
 `src/ui/welcome.ts`（`#/welcome`，用 `focusLayout`，沒有分頁列）三個畫面：怎麼學、聽聽看、從哪裡開始。
 
-- `src/main.ts` 在第一次 `route()` 之前判斷：`!settings.welcomed`、沒有任何課程紀錄、而且網址是空的或 `#/` 時才 `location.replace("#/welcome")`。深連結（分享出去的某一課、書籤）永遠不會被攔截。
+- `src/main.ts` 在第一次 `route()` 之前判斷：`!settings.welcomed`、沒有任何課程紀錄、而且網址是空的或 `#/` 時，才用 `history.replaceState(null, "", "#/welcome")` 換網址。這裡不用 `location.replace`：它會觸發 `hashchange`，引導會被畫兩次。深連結（分享出去的某一課、書籤）永遠不會被攔截。
 - 「聽聽看」用 `play()` 唸一次こんにちは；`voiceStatus()` 說這台裝置沒有日文語音時，不等使用者按「聽不到」就直接展開解法。解法本身是 `src/ui/voice-help.ts`，設定頁與引導共用同一份，不要再抄一份。
 - 「我已經會五十音」會設 `knowsKana` 與 `romaji: "off"`，並跳到第一個非 `skippableWithKana` 單元的課。
 - `Unit.skippableWithKana`（目前只有 `sounds` 單元）＋ `lessonsFor(knowsKana)`（`src/content/course.ts`）決定「下一課」要從哪裡算；課程地圖仍然列出全部的課，只是不再推薦發音單元，首頁的「還不會五十音也沒關係」也會收起來。

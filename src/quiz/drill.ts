@@ -63,16 +63,17 @@ export class Drill<Q> {
   }
 
   /**
-   * Drops the current question, plus every other queued question matching
-   * `also` — 「現在不方便聽」 takes out the whole kind, not one question at a
-   * time. Skipped questions leave the drill: they are not scored, and the
-   * progress counts only what is left.
+   * Drops the queued questions matching `also` — 「現在不方便聽」 takes out the
+   * whole kind, not one question at a time — and, without a predicate, just the
+   * current question. A current question that does not match stays: the row
+   * may be tapped after its listening question was answered, when the current
+   * one is already the next question. Skipped questions leave the drill: they
+   * are not scored, and the progress counts only what is left.
    */
   skip(also?: (question: Q) => boolean): void {
     const current = this.queue[0];
     if (current === undefined) return;
-    const dropped = new Set<Q>([current]);
-    for (const question of this.queue) if (also?.(question)) dropped.add(question);
+    const dropped = new Set<Q>(also === undefined ? [current] : this.queue.filter(also));
     for (const question of dropped) this.missed.delete(question);
     this.queue = this.queue.filter((question) => !dropped.has(question));
     this.#total -= dropped.size;

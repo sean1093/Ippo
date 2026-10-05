@@ -48,6 +48,8 @@ export function pauseRow(kind: Pause, onChange: () => void): HTMLElement {
   const set = (until: number): void => {
     updateSettings({ [FIELD[kind]]: until });
     render();
+    // The pressed button was just replaced by the other state's; keep the learner's place.
+    host.querySelector("button")?.focus({ preventScroll: true });
     onChange();
   };
   const render = (): void => {
