@@ -170,6 +170,12 @@ body {
   }
 }
 
+/* Headings and regions take focus only so screen readers start reading there
+   (focusHeading); they are not controls, so they draw no focus ring. */
+[tabindex="-1"]:focus {
+  outline: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
