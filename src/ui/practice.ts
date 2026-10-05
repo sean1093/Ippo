@@ -1,6 +1,5 @@
 import { LESSONS } from "../content/course";
-import { CARDS } from "../learn/cards";
-import { currentDue, currentNextDue, currentStats, localDay, type Stats } from "../learn/memory";
+import { answeredToday, currentDue, currentNextDue, currentStats, localDay, type Stats } from "../learn/memory";
 import { progress } from "../state";
 import { BUTTON, type Child, fill, h, icon, LABEL } from "./dom";
 import { SESSION_SIZE } from "./review";
@@ -8,14 +7,16 @@ import { SESSION_SIZE } from "./review";
 /** Average seconds per review card, for the time estimate. */
 const SECONDS_PER_CARD = 15;
 
-/** Minutes a review of `count` cards takes, at least one. */
-export function reviewMinutes(count: number): number {
-  return Math.max(1, Math.round((Math.min(count, SESSION_SIZE) * SECONDS_PER_CARD) / 60));
+/** What the next session covers when `due` cards are waiting: "約 3 分鐘" or "先做 20 張・約 5 分鐘". */
+export function sessionLabel(due: number): string {
+  const cards = Math.min(due, SESSION_SIZE);
+  const minutes = Math.max(1, Math.round((cards * SECONDS_PER_CARD) / 60));
+  return due > SESSION_SIZE ? `先做 ${cards} 張・約 ${minutes} 分鐘` : `約 ${minutes} 分鐘`;
 }
 
 /** The practice tab: today's review and what the learner has really retained. */
 export function renderPractice(main: HTMLElement): void {
-  const stats = currentStats(CARDS);
+  const stats = currentStats();
   fill(
     main,
     h("h1", { class: "pt-3 text-2xl font-bold" }, "練習"),
@@ -62,16 +63,17 @@ function todayCard(learned: number): HTMLElement {
         { class: "mt-1 flex items-baseline gap-2" },
         h("span", { class: "text-4xl font-bold text-ai" }, String(due)),
         h("span", { class: "text-lg font-semibold" }, "張"),
-        h("span", { class: "text-sm text-muted" }, `約 ${reviewMinutes(due)} 分鐘`),
+        h("span", { class: "text-sm text-muted" }, sessionLabel(due)),
       ),
-      due > SESSION_SIZE && h("p", { class: "mt-1 text-sm text-muted" }, `一次 ${SESSION_SIZE} 張，可以分幾次做。`),
       h("a", { href: "#/review", class: `${BUTTON.primary} mt-4` }, icon("repeat", "h-4 w-4"), "開始複習"),
     );
   }
 
   const upcoming = currentNextDue();
   return card(
-    h("p", { class: "flex items-center gap-2 font-semibold text-ok" }, icon("check"), "今天的複習完成了"),
+    answeredToday()
+      ? h("p", { class: "flex items-center gap-2 font-semibold text-ok" }, icon("check"), "今天的複習完成了")
+      : h("p", { class: "font-semibold" }, "今天沒有要複習的卡片"),
     upcoming && h("p", { class: "mt-1 text-sm text-muted" }, `下次：${dayLabel(upcoming.day)}有 ${upcoming.count} 張`),
     h("a", { href: "#/review", class: `${BUTTON.secondary} mt-4` }, "再加練一下"),
   );
@@ -111,7 +113,7 @@ function statsCard(stats: Stats): HTMLElement {
       { class: "mt-3 grid grid-cols-2 gap-3" },
       tile(String(stats.streak), "天", "連續學習", "每天完成一次練習或一課就算"),
       tile(String(stats.wordsKnown), "個", "記住的單字", "預估現在還記得的單字"),
-      tile(String(stats.sentencesSaid), "句", "說得出的句子", "最近一次「說說看」說得出來"),
+      tile(String(stats.said), "句", "說得出口", "最近一次「說說看」說得出來的"),
       enough
         ? tile(`${Math.round((100 * delayed.correct) / delayed.total)}`, "%", "隔幾天還記得", `近 30 天、隔 3 天以上複習的答對率（${delayed.total} 次）`)
         : tile("—", "", "隔幾天還記得", "再複習幾天，這裡就會出現你的長期記憶分數"),

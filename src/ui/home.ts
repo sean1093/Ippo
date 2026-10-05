@@ -3,7 +3,7 @@ import { currentDue } from "../learn/memory";
 import { progress } from "../state";
 import { BUTTON, fill, h, icon } from "./dom";
 import { stars } from "./layout";
-import { reviewMinutes } from "./practice";
+import { sessionLabel } from "./practice";
 
 /** The course path: progress, the next lesson to take, and every unit. */
 export function renderHome(main: HTMLElement): void {
@@ -39,7 +39,7 @@ export function renderHome(main: HTMLElement): void {
           "span",
           { class: "min-w-0 flex-1" },
           h("span", { class: "block font-semibold" }, `今天要複習 ${due} 張`),
-          h("span", { class: "block text-sm text-white/80" }, `約 ${reviewMinutes(due)} 分鐘・先複習，再上新課`),
+          h("span", { class: "block text-sm text-white/80" }, `${sessionLabel(due)}・先複習，再上新課`),
         ),
         icon("next"),
       ),

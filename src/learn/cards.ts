@@ -2,12 +2,12 @@ import { LESSONS } from "../content/course";
 import type { Jp, Lesson } from "../content/types";
 import { plain } from "../lib/jp";
 
-/** One thing to remember: a word or a sentence, reviewed on its own schedule. */
+/** One thing to remember, reviewed on its own schedule. `kind` decides how review asks it. */
 export interface Card {
   /**
    * The Japanese markup itself, so the same sentence anywhere in the course is
    * one card. Editing the text therefore starts a new card — intended: it is
-   * a different thing to remember.
+   * a different thing to remember (the old record is then ignored).
    */
   id: string;
   jp: Jp;
@@ -15,8 +15,11 @@ export interface Card {
   kind: "word" | "sentence";
   /** "say": the learner should produce it. "hear": only understand it (someone else's line, a lone kana). */
   use: "say" | "hear";
-  /** The lesson that first teaches it. */
-  lesson: string;
+  /**
+   * Where the card comes from: the id of the lesson that first teaches it, or a
+   * source outside the course path (such as the kana chart) for other kinds.
+   */
+  source: string;
 }
 
 /** The lesson's cards in teaching order, without duplicates. */
@@ -24,7 +27,7 @@ export function lessonCards(lesson: Lesson): Card[] {
   const cards = new Map<string, Card>();
   const add = (jp: Jp, zh: string, kind: Card["kind"], use: Card["use"]) => {
     if (cards.has(jp)) return;
-    cards.set(jp, { id: jp, jp, zh, kind, use: plain(jp).length <= 1 ? "hear" : use, lesson: lesson.id });
+    cards.set(jp, { id: jp, jp, zh, kind, use: plain(jp).length <= 1 ? "hear" : use, source: lesson.id });
   };
   for (const word of lesson.words) add(word.jp, word.zh, "word", "say");
   if (lesson.review !== "words") {

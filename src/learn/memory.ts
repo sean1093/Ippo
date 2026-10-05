@@ -1,51 +1,74 @@
 import { asRecord, defineStore } from "../lib/store";
-import type { Card } from "./cards";
-import { type Grade, type Memory, recallProbability, schedule } from "./scheduler";
+import { type Card, CARDS } from "./cards";
+import { enrol, type Grade, type Memory, recallProbability, schedule } from "./scheduler";
 
-/** One review, kept for the learner's statistics. */
+/** One answer, kept only as long as the delayed-recall statistic looks back. */
 export interface ReviewEvent {
-  card: string;
   /** Epoch ms. */
   at: number;
   grade: Grade;
-  /** Whether the learner produced the Japanese ("say") or picked it from options ("pick"). */
-  mode: "say" | "pick";
   /** Days since the card's previous review; null on its first. */
   gap: number | null;
 }
 
 export interface MemoryData {
   cards: Record<string, Memory>;
-  /** Most recent last, capped at LOG_LIMIT. */
+  /** Answers of the last LOG_DAYS days, oldest first. */
   log: ReviewEvent[];
   /** Local dates (YYYY-MM-DD) on which the learner finished a session, oldest first. */
   days: string[];
 }
 
+/** The cards the course still teaches. Saved ids missing here (edited or removed content) are ignored. */
+export type Catalog = ReadonlyMap<string, Card>;
+
 const DAY = 864e5;
-const LOG_LIMIT = 3000;
+const LOG_DAYS = 30;
+// A backstop on top of the 30-day window: rewriting the store on every answer must stay cheap.
+const LOG_LIMIT = 2000;
 const DAYS_LIMIT = 400;
-const GRADES: readonly Grade[] = ["again", "hard", "good"];
+const GRADES: readonly unknown[] = ["again", "hard", "good"];
+const NUMBERS = ["due", "stability", "difficulty", "reps", "lapses", "state", "scheduledDays", "last", "level"] as const;
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
 }
 
-/** Saved memory data; anything malformed is dropped entry by entry. */
+function asGrade(value: unknown): Grade | null {
+  return GRADES.includes(value) ? (value as Grade) : null;
+}
+
+/** Saved memory data; anything malformed is dropped entry by entry, so one bad card cannot wedge answering. */
 export function parseMemoryData(data: unknown): MemoryData {
   const saved = asRecord(data) ?? {};
   const cards: Record<string, Memory> = {};
   for (const [id, value] of Object.entries(asRecord(saved.cards) ?? {})) {
     const m = asRecord(value);
-    const fields = ["due", "stability", "difficulty", "reps", "lapses", "state", "scheduledDays", "last", "level"] as const;
-    if (m && fields.every((field) => isFiniteNumber(m[field]))) cards[id] = m as unknown as Memory;
+    if (!m || !NUMBERS.every((field) => isFiniteNumber(m[field]))) continue;
+    const state = m.state as number;
+    const level = m.level as number;
+    // FSRS has no transition out of an unknown state.
+    if (!Number.isInteger(state) || state < 0 || state > 3 || level < 0) continue;
+    cards[id] = {
+      due: m.due as number,
+      stability: m.stability as number,
+      difficulty: m.difficulty as number,
+      reps: m.reps as number,
+      lapses: m.lapses as number,
+      state,
+      scheduledDays: m.scheduledDays as number,
+      last: m.last as number,
+      level: Math.floor(level),
+      grade: asGrade(m.grade),
+      said: asGrade(m.said),
+    };
   }
   const log = (Array.isArray(saved.log) ? saved.log : []).flatMap((value): ReviewEvent[] => {
     const e = asRecord(value);
-    if (!e || typeof e.card !== "string" || !isFiniteNumber(e.at)) return [];
-    if (!GRADES.includes(e.grade as Grade) || (e.mode !== "say" && e.mode !== "pick")) return [];
+    const grade = asGrade(e?.grade);
+    if (!e || !isFiniteNumber(e.at) || !grade) return [];
     if (e.gap !== null && !isFiniteNumber(e.gap)) return [];
-    return [{ card: e.card, at: e.at, grade: e.grade as Grade, mode: e.mode, gap: e.gap as number | null }];
+    return [{ at: e.at, grade, gap: e.gap as number | null }];
   });
   const days = (Array.isArray(saved.days) ? saved.days : []).filter(
     (day): day is string => typeof day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(day),
@@ -65,29 +88,33 @@ export function endOfDay(date: Date): number {
 }
 
 /** Applies one answer to `data` in place. */
-export function recordAnswer(data: MemoryData, id: string, grade: Grade, mode: ReviewEvent["mode"], now: Date): void {
+export function recordAnswer(data: MemoryData, id: string, grade: Grade, mode: "say" | "pick", now: Date): void {
   const previous = data.cards[id];
-  data.cards[id] = schedule(previous, grade, now);
-  data.log.push({ card: id, at: now.getTime(), grade, mode, gap: previous ? (now.getTime() - previous.last) / DAY : null });
+  const next = schedule(previous, grade, now);
+  data.cards[id] = mode === "say" ? { ...next, said: grade } : next;
+  data.log.push({ at: now.getTime(), grade, gap: previous ? (now.getTime() - previous.last) / DAY : null });
+  const since = now.getTime() - (LOG_DAYS + 1) * DAY;
+  const stale = data.log.findIndex((event) => event.at >= since);
+  data.log.splice(0, stale === -1 ? data.log.length : stale);
   if (data.log.length > LOG_LIMIT) data.log.splice(0, data.log.length - LOG_LIMIT);
 }
 
-/** Starts the schedule of cards learnt at `at` without a review (lesson content not quizzed). */
+/** Enrols cards learnt at `at` that are not scheduled yet; true when anything changed. */
 export function introduceCards(data: MemoryData, ids: Iterable<string>, at: Date): boolean {
   let changed = false;
   for (const id of ids) {
     if (data.cards[id]) continue;
-    data.cards[id] = schedule(undefined, "good", at);
+    data.cards[id] = enrol(at);
     changed = true;
   }
   return changed;
 }
 
-/** Ids due by the end of today, most overdue first. */
-export function dueIds(data: MemoryData, now: Date): string[] {
+/** Known ids due by the end of today, most overdue first. */
+export function dueIds(data: MemoryData, now: Date, catalog: Catalog): string[] {
   const limit = endOfDay(now);
   return Object.entries(data.cards)
-    .filter(([, memory]) => memory.due < limit)
+    .filter(([id, memory]) => memory.due < limit && catalog.has(id))
     .sort(([, a], [, b]) => a.due - b.due)
     .map(([id]) => id);
 }
@@ -98,18 +125,21 @@ export interface NextDue {
   count: number;
 }
 
-export function nextDue(data: MemoryData, now: Date): NextDue | null {
+export function nextDue(data: MemoryData, now: Date, catalog: Catalog): NextDue | null {
   const today = endOfDay(now);
-  const later = Object.values(data.cards).filter((memory) => memory.due >= today);
+  const later = Object.entries(data.cards)
+    .filter(([id, memory]) => memory.due >= today && catalog.has(id))
+    .map(([, memory]) => memory.due);
   if (later.length === 0) return null;
-  const first = new Date(Math.min(...later.map((memory) => memory.due)));
+  const first = new Date(Math.min(...later));
   const end = endOfDay(first);
-  return { day: first, count: later.filter((memory) => memory.due < end).length };
+  return { day: first, count: later.filter((due) => due < end).length };
 }
 
-/** Ids of the cards most likely forgotten by now, for extra practice when nothing is due. */
-export function weakestIds(data: MemoryData, now: Date, count: number): string[] {
+/** Known ids of the cards most likely forgotten by now, for extra practice when nothing is due. */
+export function weakestIds(data: MemoryData, now: Date, count: number, catalog: Catalog): string[] {
   return Object.entries(data.cards)
+    .filter(([id]) => catalog.has(id))
     .map(([id, memory]) => [id, recallProbability(memory, now)] as const)
     .sort(([, a], [, b]) => a - b)
     .slice(0, count)
@@ -117,35 +147,33 @@ export function weakestIds(data: MemoryData, now: Date, count: number): string[]
 }
 
 export interface Stats {
-  /** Cards the learner has met. */
+  /** Known cards the learner has met. */
   learned: number;
-  /** Words still likely remembered right now (recall probability ≥ 90%). */
+  /** Words likely remembered right now (recall probability ≥ 90%), not counting a word just missed. */
   wordsKnown: number;
-  /** Sentences whose latest "say it" attempt was good or hard. */
-  sentencesSaid: number;
+  /** Cards (phrases, sentences, words) whose latest "say it" attempt was good or hard. */
+  said: number;
   /** Answers given 3+ days after the card's previous review, within the last 30 days. */
   delayed: { correct: number; total: number };
   /** Consecutive days with a finished session, counting today or, if not yet, yesterday. */
   streak: number;
 }
 
-export function computeStats(data: MemoryData, cards: ReadonlyMap<string, Card>, now: Date): Stats {
-  // Right after any review the model says "remembered" — even after a miss — so a card
-  // whose latest answer was a miss does not count until it is answered right again.
-  const lastGrade = new Map<string, Grade>();
-  const lastSaid = new Map<string, Grade>();
-  for (const event of data.log) {
-    lastGrade.set(event.card, event.grade);
-    if (event.mode === "say") lastSaid.set(event.card, event.grade);
-  }
+export function computeStats(data: MemoryData, catalog: Catalog, now: Date): Stats {
+  let learned = 0;
   let wordsKnown = 0;
+  let said = 0;
   for (const [id, memory] of Object.entries(data.cards)) {
-    if (cards.get(id)?.kind !== "word" || lastGrade.get(id) === "again") continue;
-    if (recallProbability(memory, now) >= 0.9) wordsKnown += 1;
+    const card = catalog.get(id);
+    if (!card) continue;
+    learned += 1;
+    // Right after any answer the model says "remembered" — even after a miss — so a miss
+    // keeps the word out until it is answered right again.
+    if (card.kind === "word" && memory.grade !== "again" && recallProbability(memory, now) >= 0.9) wordsKnown += 1;
+    if (memory.said === "good" || memory.said === "hard") said += 1;
   }
-  const sentencesSaid = [...lastSaid].filter(([id, grade]) => cards.get(id)?.kind === "sentence" && grade !== "again").length;
 
-  const since = now.getTime() - 30 * DAY;
+  const since = now.getTime() - LOG_DAYS * DAY;
   const delayed = { correct: 0, total: 0 };
   for (const event of data.log) {
     if (event.at < since || event.gap === null || event.gap < 3) continue;
@@ -162,7 +190,7 @@ export function computeStats(data: MemoryData, cards: ReadonlyMap<string, Card>,
     cursor.setDate(cursor.getDate() - 1);
   }
 
-  return { learned: Object.keys(data.cards).length, wordsKnown, sentencesSaid, delayed, streak };
+  return { learned, wordsKnown, said, delayed, streak };
 }
 
 // ---- The learner's live memory -------------------------------------------------
@@ -174,13 +202,15 @@ export function memoryOf(id: string): Memory | undefined {
   return memory.cards[id];
 }
 
-export function answer(id: string, grade: Grade, mode: ReviewEvent["mode"], now = new Date()): void {
+/** Records the first answer to a card's question. Ids the course does not teach are ignored. */
+export function answer(id: string, grade: Grade, mode: "say" | "pick", now = new Date()): void {
+  if (!CARDS.has(id)) return;
   recordAnswer(memory, id, grade, mode, now);
   store.save(memory);
 }
 
 export function introduce(ids: Iterable<string>, at = new Date()): void {
-  if (introduceCards(memory, ids, at)) store.save(memory);
+  if (introduceCards(memory, [...ids].filter((id) => CARDS.has(id)), at)) store.save(memory);
 }
 
 /** Marks today as a study day, for the streak. */
@@ -192,20 +222,26 @@ export function studied(now = new Date()): void {
   store.save(memory);
 }
 
+/** Whether any card was answered today. */
+export function answeredToday(now = new Date()): boolean {
+  const today = localDay(now);
+  return memory.log.some((event) => localDay(new Date(event.at)) === today);
+}
+
 export function currentDue(now = new Date()): string[] {
-  return dueIds(memory, now);
+  return dueIds(memory, now, CARDS);
 }
 
 export function currentNextDue(now = new Date()): NextDue | null {
-  return nextDue(memory, now);
+  return nextDue(memory, now, CARDS);
 }
 
 export function currentWeakest(count: number, now = new Date()): string[] {
-  return weakestIds(memory, now, count);
+  return weakestIds(memory, now, count, CARDS);
 }
 
-export function currentStats(cards: ReadonlyMap<string, Card>, now = new Date()): Stats {
-  return computeStats(memory, cards, now);
+export function currentStats(now = new Date()): Stats {
+  return computeStats(memory, CARDS, now);
 }
 
 export function resetMemory(): void {

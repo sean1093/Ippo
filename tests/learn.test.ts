@@ -17,6 +17,7 @@ const DAY = 864e5;
 const T0 = new Date(2026, 9, 1, 9); // 1 Oct 2026, 09:00 local
 const at = (days: number, hours = 0) => new Date(T0.getTime() + days * DAY + hours * 36e5);
 const empty = (): MemoryData => ({ cards: {}, log: [], days: [] });
+const card = (id: string, kind: Card["kind"] = "word"): Card => ({ id, jp: id, zh: id, kind, use: "say", source: "l" });
 
 describe("schedule", () => {
   it("spaces a remembered card further out each time", () => {
@@ -38,7 +39,7 @@ describe("schedule", () => {
     expect(due("hard")).toBeLessThan(due("good"));
   });
 
-  it("raises the question level on success and eases it back on a miss", () => {
+  it("raises the question level on a spaced success and eases it back on a miss", () => {
     const one = schedule(undefined, "good", T0);
     const three = schedule(schedule(one, "good", at(3)), "good", at(20));
     expect([one.level, three.level]).toEqual([1, 3]);
@@ -46,10 +47,15 @@ describe("schedule", () => {
     expect(schedule(three, "again", at(40)).level).toBe(1);
     expect(schedule(one, "again", at(3)).level).toBe(0);
   });
+
+  it("does not raise the level for a retake minutes later", () => {
+    const one = schedule(undefined, "good", T0);
+    expect(schedule(one, "good", new Date(T0.getTime() + 10 * 6e4)).level).toBe(1);
+  });
 });
 
 describe("stageOf", () => {
-  const say: Card = { id: "x", jp: "x", zh: "x", kind: "sentence", use: "say", lesson: "l" };
+  const say: Card = { id: "x", jp: "x", zh: "x", kind: "sentence", use: "say", source: "l" };
   const hear: Card = { ...say, use: "hear" };
   const at = (level: number) => ({ ...schedule(undefined, "good", T0), level });
 
@@ -72,13 +78,14 @@ describe("memory", () => {
     expect(data.log.map((event) => event.gap)).toEqual([null, 4]);
   });
 
-  it("introduces only cards it has not seen, leaving reviewed ones alone", () => {
+  it("enrols unseen cards at the first stage, leaving answered ones alone", () => {
     const data = empty();
     recordAnswer(data, "a", "again", "pick", T0);
     const before = data.cards.a;
     introduceCards(data, ["a", "b"], T0);
     expect(data.cards.a).toBe(before);
-    expect(data.cards.b).toBeDefined();
+    expect(data.cards.b?.level).toBe(0);
+    expect(data.cards.b?.grade).toBeNull();
   });
 
   it("counts anything due before tonight's midnight as due today, most overdue first", () => {
@@ -86,14 +93,21 @@ describe("memory", () => {
     data.cards.late = { ...schedule(undefined, "good", T0), due: at(0, 12).getTime() };
     data.cards.old = { ...schedule(undefined, "good", T0), due: at(-2).getTime() };
     data.cards.tomorrow = { ...schedule(undefined, "good", T0), due: at(1).getTime() };
-    expect(dueIds(data, T0)).toEqual(["old", "late"]);
+    expect(dueIds(data, T0, new Map(["late", "old", "tomorrow"].map((id) => [id, card(id)])))).toEqual(["old", "late"]);
+  });
+
+  it("ignores saved cards the course no longer teaches", () => {
+    const data = empty();
+    data.cards.edited = { ...schedule(undefined, "good", T0), due: at(-5).getTime() };
+    data.cards.live = { ...schedule(undefined, "good", T0), due: at(-1).getTime() };
+    expect(dueIds(data, T0, new Map([["live", card("live")]]))).toEqual(["live"]);
   });
 
   it("drops malformed saved entries one by one", () => {
     const good = schedule(undefined, "good", T0);
     const data = parseMemoryData({
-      cards: { ok: good, broken: { ...good, due: "soon" } },
-      log: [{ card: "ok", at: 1, grade: "good", mode: "pick", gap: null }, { card: "ok", at: 1, grade: "meh", mode: "pick", gap: null }],
+      cards: { ok: good, broken: { ...good, due: "soon" }, unknownState: { ...good, state: 99 } },
+      log: [{ at: 1, grade: "good", gap: null }, { at: 1, grade: "meh", gap: null }],
       days: ["2026-10-01", "yesterday"],
     });
     expect(Object.keys(data.cards)).toEqual(["ok"]);
@@ -103,8 +117,8 @@ describe("memory", () => {
 });
 
 describe("computeStats", () => {
-  const word: Card = { id: "w", jp: "w", zh: "w", kind: "word", use: "say", lesson: "l" };
-  const sentence: Card = { id: "s", jp: "s", zh: "s", kind: "sentence", use: "say", lesson: "l" };
+  const word: Card = { id: "w", jp: "w", zh: "w", kind: "word", use: "say", source: "l" };
+  const sentence: Card = { id: "s", jp: "s", zh: "s", kind: "sentence", use: "say", source: "l" };
   const cards = new Map([
     [word.id, word],
     [sentence.id, sentence],
@@ -120,12 +134,12 @@ describe("computeStats", () => {
     expect(computeStats(data, cards, T0).delayed).toEqual({ correct: 1, total: 2 });
   });
 
-  it("counts a sentence as said by its latest say-it answer", () => {
+  it("counts what the learner can say by the latest say-it answer", () => {
     const data = empty();
     recordAnswer(data, "s", "good", "say", at(-3));
-    expect(computeStats(data, cards, T0).sentencesSaid).toBe(1);
+    expect(computeStats(data, cards, T0).said).toBe(1);
     recordAnswer(data, "s", "again", "say", at(-1));
-    expect(computeStats(data, cards, T0).sentencesSaid).toBe(0);
+    expect(computeStats(data, cards, T0).said).toBe(0);
   });
 
   it("keeps a streak alive through today until the day is over", () => {
@@ -176,7 +190,7 @@ describe("cards", () => {
   it("files a card under the first lesson that teaches it", () => {
     for (const [id, card] of CARDS) {
       const first = LESSONS.find((lesson) => lessonCards(lesson).some((c) => c.id === id));
-      expect(card.lesson).toBe(first?.id);
+      expect(card.source).toBe(first?.id);
     }
   });
 });

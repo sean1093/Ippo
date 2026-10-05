@@ -57,7 +57,10 @@ applySettings();
 // Lessons finished before daily review existed join it as of the day they were finished.
 for (const lesson of LESSONS) {
   const record = progress[lesson.id];
-  if (record) introduce(lessonCards(lesson).map((card) => card.id), new Date(record.at));
+  if (!record) continue;
+  const at = new Date(record.at);
+  // A hand-edited or corrupt date falls back to now rather than enrolling cards at NaN.
+  introduce(lessonCards(lesson).map((card) => card.id), Number.isNaN(at.getTime()) ? new Date() : at);
 }
 onVoicesChanged(refreshVoices);
 window.addEventListener("hashchange", route);

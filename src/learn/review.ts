@@ -3,7 +3,7 @@ import { decoys, mc, type Question } from "../quiz/questions";
 import { type Card, CARDS } from "./cards";
 import type { Memory } from "./scheduler";
 
-/** How a card is asked: recognise it on sight → understand it by ear → say it from the Chinese. */
+/** How a word or sentence is asked: recognise it on sight → understand it by ear → say it from the Chinese. */
 export type Stage = "recognize" | "listen" | "say";
 
 export function stageOf(card: Card, memory: Memory | undefined): Stage {
@@ -13,13 +13,29 @@ export function stageOf(card: Card, memory: Memory | undefined): Stage {
   return "say";
 }
 
-/** One question reviewing `card` at `stage`. Wrong options are cards of the same kind, same lesson first. */
-export function reviewQuestion(card: Card, stage: Stage, pool: Iterable<Card>, rng: Rng): Question {
+/**
+ * One question reviewing `card`, as hard as its memory allows. Each card kind
+ * asks in its own way; a new kind adds a case here (the compiler insists).
+ */
+export function reviewQuestion(card: Card, memory: Memory | undefined, pool: Iterable<Card>, rng: Rng): Question {
+  switch (card.kind) {
+    case "word":
+    case "sentence":
+      return meaningQuestion(card, stageOf(card, memory), pool, rng);
+    default: {
+      const unhandled: never = card.kind;
+      throw new Error(`no review question for card kind ${String(unhandled)}`);
+    }
+  }
+}
+
+/** Wrong options are cards of the same kind, from the same lesson first. */
+function meaningQuestion(card: Card, stage: Stage, pool: Iterable<Card>, rng: Rng): Question {
   if (stage === "say") return { kind: "recall", zh: card.zh, jp: card.jp, card: card.id };
   const peers = [...pool].filter((other) => other.kind === card.kind && other.id !== card.id);
-  const sameLesson = peers.filter((other) => other.lesson === card.lesson);
-  const elsewhere = peers.filter((other) => other.lesson !== card.lesson);
-  const others = decoys(card, [...shuffle(sameLesson, rng), ...shuffle(elsewhere, rng)]);
+  const sameSource = peers.filter((other) => other.source === card.source);
+  const elsewhere = peers.filter((other) => other.source !== card.source);
+  const others = decoys(card, [...shuffle(sameSource, rng), ...shuffle(elsewhere, rng)]);
   return mc(
     stage === "listen"
       ? { prompt: "聽聽看，是什麼意思？", jp: card.jp, mode: "listen", say: card.jp, card: card.id }
@@ -41,6 +57,6 @@ export function reviewQuestions(
 ): Question[] {
   return shuffle(ids, rng).flatMap((id) => {
     const card = CARDS.get(id);
-    return card ? [reviewQuestion(card, stageOf(card, memoryOf(id)), CARDS.values(), rng)] : [];
+    return card ? [reviewQuestion(card, memoryOf(id), CARDS.values(), rng)] : [];
   });
 }
