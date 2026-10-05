@@ -3,7 +3,7 @@ import type { Jp } from "../content/types";
 import { kanaMastered } from "../learn/memory";
 import { parse, plain } from "../lib/jp";
 import { wordToRomaji } from "../lib/romaji";
-import { speak, stopSpeaking } from "../lib/speech";
+import { speak, type SpeakOptions, stopSpeaking } from "../lib/speech";
 import { settings } from "../state";
 import { h, icon } from "./dom";
 
@@ -63,18 +63,18 @@ export function jpText(markup: Jp, size: keyof typeof SIZES = "md", options: { r
 let generation = 0;
 let voiceRun = 0;
 
-async function voice(markup: Jp, button: HTMLElement | undefined, rate?: number): Promise<void> {
+async function voice(markup: Jp, button: HTMLElement | undefined, options?: SpeakOptions): Promise<void> {
   const run = ++voiceRun;
   for (const el of document.querySelectorAll(".speaking")) el.classList.remove("speaking");
   button?.classList.add("speaking");
-  await speak(markup, rate);
+  await speak(markup, options);
   if (run === voiceRun) button?.classList.remove("speaking");
 }
 
 /** Speaks `markup`, marking `button` while it plays. Interrupts anything already playing. */
-export function play(markup: Jp, button?: HTMLElement, rate?: number): Promise<void> {
+export function play(markup: Jp, button?: HTMLElement, options?: SpeakOptions): Promise<void> {
   generation += 1;
-  return voice(markup, button, rate);
+  return voice(markup, button, options);
 }
 
 /** Speaks lines one after another; stops as soon as anything else plays or `hush` is called. */
@@ -106,7 +106,7 @@ const SPEAK_SIZES = {
 } as const;
 
 /** Round speaker button. */
-export function speakButton(markup: Jp, size: keyof typeof SPEAK_SIZES = "md", rate?: number): HTMLButtonElement {
+export function speakButton(markup: Jp, size: keyof typeof SPEAK_SIZES = "md", options?: SpeakOptions): HTMLButtonElement {
   const [box, glyph] = SPEAK_SIZES[size];
   const button = h(
     "button",
@@ -119,7 +119,7 @@ export function speakButton(markup: Jp, size: keyof typeof SPEAK_SIZES = "md", r
   );
   button.addEventListener("click", (event) => {
     event.stopPropagation();
-    void play(markup, button, rate);
+    void play(markup, button, options);
   });
   return button;
 }
@@ -137,7 +137,7 @@ export function slowButton(markup: Jp): HTMLButtonElement {
     icon("speaker", "h-4 w-4"),
     "慢速",
   );
-  button.addEventListener("click", () => void play(markup, button, SLOW_RATE));
+  button.addEventListener("click", () => void play(markup, button, { rate: SLOW_RATE }));
   return button;
 }
 

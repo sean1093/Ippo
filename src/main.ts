@@ -8,8 +8,10 @@ import { renderChallenge } from "./ui/challenge";
 import { renderHome } from "./ui/home";
 import { hush } from "./ui/japanese";
 import { renderKana, renderKanaQuiz } from "./ui/kana";
+import { renderKanji, renderKanjiQuiz } from "./ui/kanji";
 import { type Tab, tabLayout } from "./ui/layout";
 import { renderLesson } from "./ui/lesson/player";
+import { renderPairs, renderPairsQuiz } from "./ui/pairs";
 import { renderPractice } from "./ui/practice";
 import { renderReview } from "./ui/review";
 import { refreshVoices, renderSettings } from "./ui/settings";
@@ -47,6 +49,10 @@ const PAGES: Record<string, Page> = {
   "kana-quiz": {
     render: (root, [script, section]) => renderKanaQuiz(root, script === "kata" ? "kata" : "hira", section),
   },
+  kanji: { tab: "practice", render: (main) => renderKanji(main) },
+  "kanji-quiz": { render: (root) => renderKanjiQuiz(root) },
+  pairs: { tab: "practice", render: (main) => renderPairs(main) },
+  "pairs-quiz": { render: (root, [category]) => renderPairsQuiz(root, category) },
   settings: { tab: "settings", render: (main) => renderSettings(main) },
 };
 

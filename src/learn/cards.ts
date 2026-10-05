@@ -1,6 +1,7 @@
 import { LESSONS } from "../content/course";
 import { KANA_SECTIONS } from "../content/kana";
 import { kanaCardId, NEW_KANA } from "../content/kana-progression";
+import { FALSE_FRIENDS } from "../content/kanji";
 import type { Jp, Lesson } from "../content/types";
 import { plain } from "../lib/jp";
 import { kanaToRomaji, toKatakana } from "../lib/romaji";
@@ -15,7 +16,7 @@ export interface Card {
   id: string;
   jp: Jp;
   zh: string;
-  kind: "word" | "sentence" | "kana";
+  kind: "word" | "sentence" | "kana" | "kanji";
   /** "say": the learner should produce it. "hear": only understand it (someone else's line, a lone kana). */
   use: "say" | "hear";
   /**
@@ -53,15 +54,25 @@ export function lessonCardIds(lesson: Lesson): string[] {
   return [...lessonCards(lesson).map((card) => card.id), ...(NEW_KANA.get(lesson.id) ?? []).map(kanaCardId)];
 }
 
+/** The kanji corner's false friends: words the learner meets outside the course path. */
+export const KANJI_CARDS: Card[] = FALSE_FRIENDS.map((entry) => ({
+  id: entry.jp,
+  jp: entry.jp,
+  zh: entry.zh,
+  kind: "kanji",
+  use: "say",
+  source: "kanji",
+}));
+
 /**
  * Every card in the course by id, in teaching order; a card in several lessons
- * belongs to the first. Every kana of the chart is a card of its own, so
- * reading it is practised and tracked like anything else — wherever the
- * learner meets it, in a lesson or on the chart.
+ * belongs to the first, and the kanji corner's false friends follow. Every kana
+ * of the chart is a card of its own, so reading it is practised and tracked
+ * like anything else — wherever the learner meets it, in a lesson or on the chart.
  */
 export const CARDS: ReadonlyMap<string, Card> = (() => {
   const all = new Map<string, Card>();
-  for (const card of LESSONS.flatMap(lessonCards)) if (!all.has(card.id)) all.set(card.id, card);
+  for (const card of [...LESSONS.flatMap(lessonCards), ...KANJI_CARDS]) if (!all.has(card.id)) all.set(card.id, card);
   for (const kana of CHART_KANA) {
     all.set(kanaCardId(kana), {
       id: kanaCardId(kana),

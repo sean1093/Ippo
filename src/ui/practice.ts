@@ -23,6 +23,7 @@ export function renderPractice(main: HTMLElement): void {
     h("p", { class: "mt-1 text-sm text-muted" }, "每天幾分鐘，在快忘記之前再想一次。"),
     todayCard(stats.learned),
     stats.learned > 0 && statsCard(stats),
+    drillsCard(),
     h(
       "details",
       { class: "mt-6 rounded-2xl bg-card p-4 text-sm leading-relaxed ring-1 ring-hair" },
@@ -37,6 +38,33 @@ export function renderPractice(main: HTMLElement): void {
         { class: "mt-2 text-ink/80" },
         "題目也會跟著你的熟悉度變難：先認得、再聽得懂，最後看中文就能說出日文。",
       ),
+    ),
+  );
+}
+
+/** Practice outside the course path: the two things Taiwanese learners need most. */
+function drillsCard(): HTMLElement {
+  const link = (href: string, title: string, hint: string) =>
+    h(
+      "a",
+      { href, class: "flex items-center gap-3 rounded-2xl bg-card p-4 shadow-sm ring-1 ring-hair active:scale-[0.99]" },
+      h(
+        "span",
+        { class: "min-w-0 flex-1" },
+        h("span", { class: "block font-semibold" }, title),
+        h("span", { class: "mt-0.5 block text-sm leading-snug text-muted" }, hint),
+      ),
+      icon("next", "h-5 w-5 shrink-0 text-muted"),
+    );
+  return h(
+    "section",
+    { class: "mt-6" },
+    h("h2", { class: LABEL }, "特訓"),
+    h(
+      "div",
+      { class: "mt-2 flex flex-col gap-3" },
+      link("#/pairs", "聽辨特訓", "長音、促音、清濁音…用不同的聲音練到聽得出差別。"),
+      link("#/kanji", "漢字小教室", "勉強、手紙、大丈夫：看得懂漢字，更要知道它在日文是什麼意思。"),
     ),
   );
 }
