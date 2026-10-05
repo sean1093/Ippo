@@ -1,7 +1,16 @@
 import { resetChallenges } from "../learn/challenge";
 import { resetMemory } from "../learn/memory";
 import { japaneseVoices, voiceStatus } from "../lib/speech";
-import { progress, resetProgress, type RomajiMode, type Settings, settings, updateSettings } from "../state";
+import {
+  progress,
+  resetProgress,
+  type RomajiMode,
+  type Settings,
+  settings,
+  type TextSize,
+  type Theme,
+  updateSettings,
+} from "../state";
 import { type Child, h, icon } from "./dom";
 import { play } from "./japanese";
 
@@ -9,6 +18,18 @@ const ROMAJI_CHOICES: { label: string; value: RomajiMode }[] = [
   { label: "自動", value: "auto" },
   { label: "一律顯示", value: "always" },
   { label: "不顯示", value: "off" },
+];
+
+const THEMES: { label: string; value: Theme }[] = [
+  { label: "跟隨系統", value: "system" },
+  { label: "淺色", value: "light" },
+  { label: "深色", value: "dark" },
+];
+
+const TEXT_SIZES: { label: string; value: TextSize }[] = [
+  { label: "標準", value: "standard" },
+  { label: "大", value: "large" },
+  { label: "特大", value: "xlarge" },
 ];
 
 const RATES = [
@@ -26,6 +47,7 @@ export function renderSettings(main: HTMLElement): void {
   voiceHost = h("div");
   main.append(
     h("h1", { class: "pt-3 text-2xl font-bold" }, "設定"),
+    card("外觀", themeRow(), textSizeRow()),
     card("顯示", romajiRow(), toggle("furigana", "顯示漢字讀音", "在漢字上方用平假名標出讀法。")),
     card("發音", toggle("autoplay", "自動播放", "卡片和題目出現時，自動唸一次。"), rateRow(), voiceHost),
     card("學習紀錄", resetRow()),
@@ -155,6 +177,20 @@ function romajiRow(): HTMLElement {
     ROMAJI_CHOICES,
     () => settings.romaji,
     (romaji) => updateSettings({ romaji }),
+  );
+}
+
+function themeRow(): HTMLElement {
+  return segmented("主題", null, THEMES, () => settings.theme, (theme) => updateSettings({ theme }));
+}
+
+function textSizeRow(): HTMLElement {
+  return segmented(
+    "字體大小",
+    "整個畫面的字都會跟著變大。",
+    TEXT_SIZES,
+    () => settings.textSize,
+    (textSize) => updateSettings({ textSize }),
   );
 }
 

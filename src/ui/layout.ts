@@ -51,7 +51,7 @@ export function tabLayout(root: HTMLElement, active: Tab): HTMLElement {
             count > 0 &&
               h(
                 "span",
-                { class: "absolute -right-2.5 -top-1.5 min-w-[1.25rem] rounded-full bg-shu px-1 text-center text-[0.65rem] font-bold leading-5 text-white" },
+                { class: "absolute -right-2.5 -top-1.5 min-w-[1.25rem] rounded-full bg-shu px-1 text-center text-[0.65rem] font-bold leading-5 text-on-accent" },
                 count > 99 ? "99+" : String(count),
               ),
           ),

@@ -68,7 +68,7 @@ export function shadowMode(dialogue: Dialogue): DialogueMode {
   }
 
   function mark(line: ShadowLine, recording: boolean): void {
-    line.record.className = `${RECORD} ${recording ? "bg-ng text-white" : "bg-shu-soft text-shu"}`;
+    line.record.className = `${RECORD} ${recording ? "bg-ng text-on-accent" : "bg-shu-soft text-shu"}`;
     fill(line.record, icon("mic", "h-4 w-4"), h("span", null, recording ? "停止" : "錄音"));
   }
 

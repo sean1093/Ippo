@@ -16,6 +16,25 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Ippo" />
+    <script>
+      // Mirrors applySettings() in src/state.ts. It has to run before the first
+      // paint, or opening the app in dark mode flashes the light paper.
+      try {
+        const saved = JSON.parse(localStorage.getItem("ippo.settings") || "null");
+        // Stores are written as { v, data }; saves from before versioning are bare objects.
+        const s = (saved && (saved.data || saved)) || {};
+        const theme =
+          s.theme === "light" || s.theme === "dark"
+            ? s.theme
+            : matchMedia("(prefers-color-scheme: dark)").matches
+              ? "dark"
+              : "light";
+        const root = document.documentElement;
+        root.dataset.theme = theme;
+        root.dataset.textSize = s.textSize === "large" || s.textSize === "xlarge" ? s.textSize : "standard";
+        document.querySelector('meta[name="theme-color"]').content = theme === "dark" ? "#16171b" : "#fbf8f3";
+      } catch {}
+    </script>
   </head>
   <body>
     <div id="app" class="mx-auto min-h-dvh max-w-md"></div>

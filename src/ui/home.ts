@@ -35,13 +35,13 @@ export function renderHome(main: HTMLElement): void {
     due > 0 &&
       h(
         "a",
-        { href: "#/review", class: "mt-6 flex items-center gap-3 rounded-2xl bg-ai p-4 text-white shadow-sm transition active:scale-[0.99]" },
-        h("span", { class: "flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white/15" }, icon("repeat")),
+        { href: "#/review", class: "mt-6 flex items-center gap-3 rounded-2xl bg-ai p-4 text-on-accent shadow-sm transition active:scale-[0.99]" },
+        h("span", { class: "flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-on-accent/15" }, icon("repeat")),
         h(
           "span",
           { class: "min-w-0 flex-1" },
           h("span", { class: "block font-semibold" }, `今天要複習 ${due} 張`),
-          h("span", { class: "block text-sm text-white/80" }, `${sessionLabel(due)}・先複習，再上新課`),
+          h("span", { class: "block text-sm text-on-accent/80" }, `${sessionLabel(due)}・先複習，再上新課`),
         ),
         icon("next"),
       ),
@@ -94,12 +94,12 @@ export function renderHome(main: HTMLElement): void {
             const record = progress[lesson.id];
             const isNext = lesson === next;
             const badge = record
-              ? h("span", { class: "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ok text-white" }, icon("check", "h-5 w-5"))
+              ? h("span", { class: "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-ok text-on-accent" }, icon("check", "h-5 w-5"))
               : h(
                   "span",
                   {
                     class: `flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-bold ${
-                      isNext ? "bg-ai text-white ring-4 ring-ai-soft" : "bg-paper text-muted ring-1 ring-hair"
+                      isNext ? "bg-ai text-on-accent ring-4 ring-ai-soft" : "bg-paper text-muted ring-1 ring-hair"
                     }`,
                   },
                   String(number),
@@ -150,7 +150,7 @@ function challengeRow(unit: Unit): HTMLElement {
     },
     h(
       "span",
-      { class: "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-shu text-white" },
+      { class: "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-shu text-on-accent" },
       icon("star", "h-5 w-5"),
     ),
     h(

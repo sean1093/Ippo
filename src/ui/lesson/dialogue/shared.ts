@@ -58,7 +58,7 @@ export function playAllButton(rows: readonly Row[]): HTMLButtonElement {
     "button",
     {
       type: "button",
-      class: "inline-flex items-center gap-2 rounded-full bg-ai px-4 py-2 text-sm font-semibold text-white active:scale-95",
+      class: "inline-flex items-center gap-2 rounded-full bg-ai px-4 py-2 text-sm font-semibold text-on-accent active:scale-95",
     },
     icon("play", "h-4 w-4"),
     label,

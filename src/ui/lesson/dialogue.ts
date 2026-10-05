@@ -40,7 +40,7 @@ export function dialogueStep(dialogue: Dialogue): StepView {
     shown = i;
     current?.onLeave?.();
     hush();
-    tabs.forEach((tab, n) => (tab.className = `${TAB} ${n === i ? "bg-ai text-white shadow-sm" : "text-muted"}`));
+    tabs.forEach((tab, n) => (tab.className = `${TAB} ${n === i ? "bg-ai text-on-accent shadow-sm" : "text-muted"}`));
     current = mode.build(dialogue);
     fill(body, current.el);
   }

@@ -65,9 +65,9 @@ const BUTTON_BASE =
 
 /** Shared button looks. */
 export const BUTTON = {
-  primary: `${BUTTON_BASE} bg-ai text-white shadow-sm`,
-  ok: `${BUTTON_BASE} bg-ok text-white shadow-sm`,
-  ng: `${BUTTON_BASE} bg-ng text-white shadow-sm`,
+  primary: `${BUTTON_BASE} bg-ai text-on-accent shadow-sm`,
+  ok: `${BUTTON_BASE} bg-ok text-on-accent shadow-sm`,
+  ng: `${BUTTON_BASE} bg-ng text-on-accent shadow-sm`,
   secondary: `${BUTTON_BASE} bg-card text-ink ring-1 ring-hair`,
   quiet: "flex w-full items-center justify-center gap-1 rounded-xl px-4 py-3 text-sm font-medium text-muted",
 };

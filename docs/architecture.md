@@ -66,7 +66,12 @@ src/
 在 `src/state.ts` 的 `Settings`、`DEFAULT_SETTINGS`、`parseSettings` 加欄位；畫面在 `src/ui/settings.ts`。需要套用到整個頁面的設定（例如 CSS 開關）寫在 `applySettings()`。
 
 ### 主題與顏色
-顏色都是 CSS 變數，定義在 `src/style.css` 的 `:root`，Tailwind 透過 `tailwind.config.js` 使用（`bg-paper`、`text-ink`、`bg-card`…）。新主題只要覆寫這些變數；元件裡不要寫死顏色（例如 `bg-white`），改用語意化的 token。
+顏色都是 CSS 變數，定義在 `src/style.css` 的 `:root`，Tailwind 透過 `tailwind.config.js` 使用（`bg-paper`、`text-ink`、`bg-card`…）。元件裡不要寫死顏色（例如 `bg-white`），改用語意化的 token。
+
+- **深色主題**：`:root[data-theme="dark"]` 只覆寫同一組變數，別的都不用改。設定 `theme`（`system`／`light`／`dark`）由 `applySettings()` 解析：`system` 讀 `matchMedia("(prefers-color-scheme: dark)")` 並持續監聽，所以系統切換時畫面立刻跟著變；結果寫進 `<html data-theme>`，同時設定 `color-scheme` 與 `<meta name="theme-color">`。`index.html` 裡有一小段 inline script 在第一次繪製前做同樣的事，否則深色下重新整理會閃一下白底。
+- **填色上的字**：按鈕、複習橫幅、句型卡這類填滿強調色的區塊，文字用 `text-on-accent`（`--on-accent`）而不是白色——深色主題的強調色偏亮，白字對比不足。唯一的例外是設定頁開關的圓鈕，兩個主題都維持白色。
+- **字體大小**：設定 `textSize`（`standard`／`large`／`xlarge`）寫進 `<html data-text-size>`，只改根元素的 `font-size`（100%／112.5%／125%）。版面全部用 rem，所以整個 UI 一起放大。
+- `tests/theme.test.ts` 直接讀 `src/style.css` 的變數，檢查兩個主題裡每一組「文字 × 底色」都達到 WCAG AA（4.5:1）。調色時先跑它。
 
 ### 語音
 所有發音都經過 `src/lib/speech.ts` 的 `speak(markup, { rate, voice, pitch })`，畫面元件透過 `src/ui/japanese.ts` 的 `play()`／`playSequence()` 使用。不給選項就用學習者設定的語音與語速；聽辨特訓會指定語音（`varietyVoices()`）、語速與音高。之後若要改用預錄音檔，只需要在 `speak()` 這一處切換來源。

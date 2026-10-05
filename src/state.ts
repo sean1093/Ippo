@@ -6,6 +6,18 @@ export type RomajiMode = "auto" | "always" | "off";
 
 const ROMAJI_MODES: readonly unknown[] = ["auto", "always", "off"];
 
+/** Which palette to paint: follow the device, or pin one. */
+export type Theme = "system" | "light" | "dark";
+
+/** Root font size; everything else is in rem, so the whole UI scales with it. */
+export type TextSize = "standard" | "large" | "xlarge";
+
+const THEMES: readonly unknown[] = ["system", "light", "dark"];
+const TEXT_SIZES: readonly unknown[] = ["standard", "large", "xlarge"];
+
+/** `--paper` of each theme, for <meta name="theme-color">; keep in step with style.css. */
+const PAPER: Record<"light" | "dark", string> = { light: "#fbf8f3", dark: "#16171b" };
+
 export interface Settings {
   romaji: RomajiMode;
   furigana: boolean;
@@ -18,6 +30,8 @@ export interface Settings {
   micNoticeSeen: boolean;
   /** Speaking practice is paused until this time (epoch ms); 0 means it is on. */
   speakOffUntil: number;
+  theme: Theme;
+  textSize: TextSize;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -28,6 +42,8 @@ export const DEFAULT_SETTINGS: Settings = {
   voice: null,
   micNoticeSeen: false,
   speakOffUntil: 0,
+  theme: "system",
+  textSize: "standard",
 };
 
 /** Saved settings over the defaults; malformed fields fall back individually. */
@@ -37,6 +53,8 @@ export function parseSettings(data: unknown): Settings {
   // Romaji used to be a switch; "on" becomes the fading mode, which is what it meant to a learner.
   if (ROMAJI_MODES.includes(saved.romaji)) settings.romaji = saved.romaji as RomajiMode;
   else if (typeof saved.romaji === "boolean") settings.romaji = saved.romaji ? "auto" : "off";
+  if (THEMES.includes(saved.theme)) settings.theme = saved.theme as Theme;
+  if (TEXT_SIZES.includes(saved.textSize)) settings.textSize = saved.textSize as TextSize;
   for (const key of ["furigana", "autoplay", "micNoticeSeen"] as const) {
     const value = saved[key];
     if (typeof value === "boolean") settings[key] = value;
@@ -80,11 +98,25 @@ export const settings: Settings = settingsStore.load();
 /** Completed lessons; replaced wholesale by `completeLesson` / `resetProgress`. */
 export let progress: Progress = progressStore.load();
 
-/** Pushes the settings into the page (CSS switches) and the speech engine. */
+/** Set once the first time a theme is applied; 跟隨系統 has to keep following. */
+let systemDark: MediaQueryList | null = null;
+
+/** Pushes the settings into the page (theme, CSS switches) and the speech engine. */
 export function applySettings(): void {
-  const root = document.documentElement.classList;
-  root.toggle("no-romaji", settings.romaji === "off");
-  root.toggle("no-furigana", !settings.furigana);
+  const root = document.documentElement;
+  root.classList.toggle("no-romaji", settings.romaji === "off");
+  root.classList.toggle("no-furigana", !settings.furigana);
+  if (!systemDark && typeof window.matchMedia === "function") {
+    systemDark = window.matchMedia("(prefers-color-scheme: dark)");
+    systemDark.addEventListener("change", () => {
+      if (settings.theme === "system") applySettings();
+    });
+  }
+  const theme = settings.theme === "system" ? (systemDark?.matches ? "dark" : "light") : settings.theme;
+  root.dataset.theme = theme;
+  root.dataset.textSize = settings.textSize;
+  // The status bar of an installed app and of Safari follows this, not the CSS.
+  document.querySelector('meta[name="theme-color"]')?.setAttribute("content", PAPER[theme]);
   configureSpeech({ voice: settings.voice, rate: settings.rate });
 }
 
