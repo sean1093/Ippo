@@ -1,8 +1,9 @@
 import { LESSONS } from "../content/course";
-import { COURSE_KANA, NEW_KANA } from "../content/kana-progression";
+import { KANA_SECTIONS } from "../content/kana";
+import { kanaCardId, NEW_KANA } from "../content/kana-progression";
 import type { Jp, Lesson } from "../content/types";
 import { plain } from "../lib/jp";
-import { kanaToRomaji } from "../lib/romaji";
+import { kanaToRomaji, toKatakana } from "../lib/romaji";
 
 /** One thing to remember, reviewed on its own schedule. `kind` decides how review asks it. */
 export interface Card {
@@ -42,10 +43,10 @@ export function lessonCards(lesson: Lesson): Card[] {
   return [...cards.values()];
 }
 
-/** The review card id of a single kana; the chart quiz and daily review share it. */
-export function kanaCardId(kana: string): string {
-  return `kana:${kana}`;
-}
+/** Every cell of the chart in both scripts: what a kana card can be. */
+const CHART_KANA: string[] = KANA_SECTIONS.flatMap((section) =>
+  section.rows.flat().flatMap((cell) => (cell === null ? [] : [cell, toKatakana(cell)])),
+);
 
 /** What finishing a lesson puts into review: its cards, plus the kana it is the first to use. */
 export function lessonCardIds(lesson: Lesson): string[] {
@@ -54,13 +55,14 @@ export function lessonCardIds(lesson: Lesson): string[] {
 
 /**
  * Every card in the course by id, in teaching order; a card in several lessons
- * belongs to the first. The kana the course uses are cards of their own, so
- * reading them is practised and tracked like anything else.
+ * belongs to the first. Every kana of the chart is a card of its own, so
+ * reading it is practised and tracked like anything else — wherever the
+ * learner meets it, in a lesson or on the chart.
  */
 export const CARDS: ReadonlyMap<string, Card> = (() => {
   const all = new Map<string, Card>();
   for (const card of LESSONS.flatMap(lessonCards)) if (!all.has(card.id)) all.set(card.id, card);
-  for (const kana of COURSE_KANA) {
+  for (const kana of CHART_KANA) {
     all.set(kanaCardId(kana), {
       id: kanaCardId(kana),
       jp: kana,

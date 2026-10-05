@@ -43,7 +43,14 @@ export function jpText(markup: Jp, size: keyof typeof SIZES = "md", options: { r
         "span",
         { class: "word" },
         japanese,
-        show && h("span", { class: `romaji block text-muted ${SIZES[size].romaji}` }, wordToRomaji(reading)),
+        // The romaji sits inside the lang="ja" line, so it is hidden from screen
+        // readers (they already read the Japanese) and styled back to the page font.
+        show &&
+          h(
+            "span",
+            { class: `romaji block text-muted ${SIZES[size].romaji}`, "aria-hidden": "true" },
+            wordToRomaji(reading),
+          ),
       ),
     );
   });

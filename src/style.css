@@ -17,6 +17,7 @@
   --ok-soft: 229 243 233;
   --ng: 194 65 59;
   --ng-soft: 251 232 231;
+  --font-page: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
 }
 
 html {
@@ -26,7 +27,7 @@ html {
 
 body {
   @apply bg-paper text-ink antialiased;
-  font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+  font-family: var(--font-page);
 }
 
 /* Japanese glyphs for Japanese text: the page is zh-Hant, and shared kanji differ in shape. */
@@ -50,7 +51,9 @@ body {
   text-align: center;
 }
 
+/* Latin letters inside the lang="ja" line: keep them in the page font, not the Japanese face. */
 .jp .romaji {
+  font-family: var(--font-page);
   line-height: 1.3;
 }
 

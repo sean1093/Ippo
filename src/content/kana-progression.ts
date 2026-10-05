@@ -8,14 +8,21 @@ import type { Jp, Lesson } from "./types";
  * progression is read off the lessons themselves instead of being hand-listed.
  */
 
-/**
- * Kana that are never met on their own: a small kana belongs to the syllable it
- * forms (きゃ, がっこう), and ー only stretches the vowel in front of it.
- */
-const COMBINING: Record<string, true> = {
-  ぁ: true, ぃ: true, ぅ: true, ぇ: true, ぉ: true, っ: true, ゃ: true, ゅ: true, ょ: true,
-  ァ: true, ィ: true, ゥ: true, ェ: true, ォ: true, ッ: true, ャ: true, ュ: true, ョ: true,
+/** Small vowels that only ever appear inside a loanword spelling (フォ, ティ). */
+const SMALL_VOWEL: Record<string, true> = {
+  ぁ: true, ぃ: true, ぅ: true, ぇ: true, ぉ: true,
+  ァ: true, ィ: true, ゥ: true, ェ: true, ォ: true,
 };
+
+/** Small ゃゅょ bind to the kana in front of them: きゃ is one thing to read, and the chart teaches it as one cell. */
+const YOON: Record<string, true> = { ゃ: true, ゅ: true, ょ: true, ャ: true, ュ: true, ョ: true };
+
+/**
+ * っ and ー are beats, not characters to read: nothing on the chart teaches
+ * them, and getting きって or コーヒー right is a question of timing rather than
+ * of recognising a kana. A word containing one therefore keeps its romaji.
+ */
+const BEAT = /[っッー]/;
 
 /** Hiragana and katakana, excluding ー and ・. The two scripts are learnt separately. */
 const KANA = /[\u3041-\u3096\u30a1-\u30fa]/;
@@ -23,9 +30,19 @@ const KANA = /[\u3041-\u3096\u30a1-\u30fa]/;
 /** Tells the two scripts apart: the same sound is a different thing to read in katakana. */
 export const KATAKANA = /[\u30a1-\u30fa]/;
 
-/** The kana of a reading that are learnt one by one, in order; punctuation and small kana drop out. */
+/** The review card id of a kana unit; the chart quiz and daily review share it. */
+export function kanaCardId(kana: string): string {
+  return `kana:${kana}`;
+}
+
+/** The units of a reading that are learnt one at a time (きゃ counts as one); punctuation, っ and ー drop out. */
 export function kanaOf(reading: string): string[] {
-  return [...reading].filter((ch) => KANA.test(ch) && !COMBINING[ch]);
+  const units: string[] = [];
+  for (const ch of reading) {
+    if (YOON[ch] && units.length > 0) units[units.length - 1] += ch;
+    else if (KANA.test(ch) && !SMALL_VOWEL[ch] && !BEAT.test(ch)) units.push(ch);
+  }
+  return units;
 }
 
 /** Everything of a lesson the learner reads: words, their examples, pattern examples and the dialogue. */
@@ -38,10 +55,10 @@ function* lessonJapanese(lesson: Lesson): Generator<Jp> {
   for (const line of lesson.dialogue?.lines ?? []) yield line.jp;
 }
 
-/** The distinct kana a lesson shows, in the order they first appear. */
+/** The distinct kana units a lesson shows, in the order they first appear. */
 export function lessonKana(lesson: Lesson): string[] {
   const kana = new Set<string>();
-  for (const jp of lessonJapanese(lesson)) for (const ch of kanaOf(readings(jp).join(""))) kana.add(ch);
+  for (const jp of lessonJapanese(lesson)) for (const unit of kanaOf(readings(jp).join(""))) kana.add(unit);
   return [...kana];
 }
 
@@ -60,10 +77,12 @@ export function newKanaByLesson(lessons: readonly Lesson[] = LESSONS): Map<strin
 /** The course's kana progression, computed once. */
 export const NEW_KANA: ReadonlyMap<string, readonly string[]> = newKanaByLesson();
 
-/** Every kana the course uses, in the order it is first met. */
-export const COURSE_KANA: readonly string[] = [...NEW_KANA.values()].flat();
-
-/** Whether a word still needs its romaji: in "auto" mode, only until every kana of its reading is known. */
+/**
+ * Whether a word still needs its romaji: in "auto" mode, only until every kana
+ * of its reading is known. A small pause (っ) or a long vowel (ー) keeps the
+ * romaji for good — those are the beats a beginner misses, and no kana card
+ * ever teaches them.
+ */
 export function wordNeedsRomaji(reading: string, known: (kana: string) => boolean): boolean {
-  return !kanaOf(reading).every(known);
+  return BEAT.test(reading) || !kanaOf(reading).every(known);
 }

@@ -1,6 +1,7 @@
+import { kanaCardId } from "../content/kana-progression";
 import type { Lesson } from "../content/types";
 import { asRecord, defineStore } from "../lib/store";
-import { type Card, CARDS, kanaCardId, lessonCards } from "./cards";
+import { type Card, CARDS, lessonCards } from "./cards";
 import { enrol, type Grade, type Memory, recallProbability, schedule } from "./scheduler";
 
 /** One answer, kept only as long as the delayed-recall statistic looks back. */

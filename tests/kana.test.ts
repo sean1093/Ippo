@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { LESSONS } from "../src/content/course";
-import { COURSE_KANA, kanaOf, lessonKana, newKanaByLesson, wordNeedsRomaji } from "../src/content/kana-progression";
-import type { Lesson } from "../src/content/types";
-import { CARDS, kanaCardId } from "../src/learn/cards";
+import { kanaCardId, kanaOf, lessonKana, newKanaByLesson, wordNeedsRomaji } from "../src/content/kana-progression";
+import type { Jp, Lesson } from "../src/content/types";
+import { readings } from "../src/lib/jp";
+import { CARDS } from "../src/learn/cards";
 import { mastered } from "../src/learn/memory";
 import { type Grade, type Memory, schedule } from "../src/learn/scheduler";
 
@@ -17,22 +18,38 @@ const lessonWith = (id: string, jp: string): Lesson => ({
   exercises: [],
 });
 
+/** Every piece of Japanese a lesson shows, the quiz included. */
+function lessonJapanese(lesson: Lesson): Jp[] {
+  return [
+    ...lesson.words.flatMap((word) => (word.example ? [word.jp, word.example.jp] : [word.jp])),
+    ...lesson.patterns.flatMap((pattern) => pattern.examples.map((example) => example.jp)),
+    ...(lesson.dialogue?.lines ?? []).map((line) => line.jp),
+    ...lesson.exercises.flatMap((ex) => {
+      if (ex.kind === "choice") return [...(ex.jp ? [ex.jp] : []), ex.answer, ...ex.wrong];
+      return ex.kind === "order" ? [ex.jp, ...(ex.extra ?? [])] : [ex.jp];
+    }),
+  ];
+}
+
 describe("kanaOf", () => {
-  it("lists the kana a learner meets one by one, in order", () => {
-    expect(kanaOf("ひらがな").join("")).toBe("ひらがな");
-    expect(kanaOf("コーヒー").join("")).toBe("コヒ");
+  it("lists the kana a learner meets one at a time, in order", () => {
+    expect(kanaOf("ひらがな")).toEqual(["ひ", "ら", "が", "な"]);
+    expect(kanaOf("そう です か。")).toEqual(["そ", "う", "で", "す", "か"]);
+    expect(kanaOf("＿ です")).toEqual(["で", "す"]);
   });
 
-  it("leaves out what is never met alone: long marks, small kana and punctuation", () => {
-    // きって is き + て: the small っ is part of the syllable it doubles.
-    expect(kanaOf("きって").join("")).toBe("きて");
-    expect(kanaOf("しゃしん").join("")).toBe("ししん");
-    expect(kanaOf("そう です か。").join("")).toBe("そうですか");
-    expect(kanaOf("＿ です").join("")).toBe("です");
+  it("keeps a small ゃゅょ with the kana it belongs to", () => {
+    expect(kanaOf("しゃしん")).toEqual(["しゃ", "し", "ん"]);
+    expect(kanaOf("メニュー")).toEqual(["メ", "ニュ"]);
+  });
+
+  it("drops the beats that no kana card teaches: っ and ー", () => {
+    expect(kanaOf("きって")).toEqual(["き", "て"]);
+    expect(kanaOf("コーヒー")).toEqual(["コ", "ヒ"]);
   });
 
   it("treats the two scripts as different things to read", () => {
-    expect(kanaOf("あア").join("")).toBe("あア");
+    expect(kanaOf("あア")).toEqual(["あ", "ア"]);
   });
 });
 
@@ -58,19 +75,20 @@ describe("newKanaByLesson", () => {
   });
 
   it("assigns every kana of the course exactly once", () => {
-    const byLesson = newKanaByLesson();
-    const all = [...byLesson.values()].flat();
+    const all = [...newKanaByLesson().values()].flat();
     expect(new Set(all).size).toBe(all.length);
-    expect(all).toEqual([...COURSE_KANA]);
     for (const lesson of LESSONS) {
       for (const kana of lessonKana(lesson)) expect(all).toContain(kana);
     }
   });
 
-  it("makes every kana of the course a card the review can ask", () => {
-    for (const kana of COURSE_KANA) {
-      const card = CARDS.get(kanaCardId(kana));
-      expect(card).toMatchObject({ jp: kana, kind: "kana", use: "hear", source: "kana" });
+  it("gives every kana the course puts on screen a card the review can ask", () => {
+    for (const lesson of LESSONS) {
+      for (const jp of lessonJapanese(lesson)) {
+        for (const kana of kanaOf(readings(jp).join(""))) {
+          expect(CARDS.get(kanaCardId(kana))).toMatchObject({ jp: kana, kind: "kana", use: "hear", source: "kana" });
+        }
+      }
     }
   });
 });
@@ -99,8 +117,13 @@ describe("wordNeedsRomaji", () => {
     expect(wordNeedsRomaji("あなた", known)).toBe(true);
   });
 
-  it("ignores the characters that are never learnt on their own", () => {
-    const known = (kana: string) => "きて".includes(kana);
-    expect(wordNeedsRomaji("きって。", known)).toBe(false);
+  it("asks for the 拗音 syllable itself, not its halves", () => {
+    expect(wordNeedsRomaji("しゃしん", (kana) => "しん".includes(kana))).toBe(true);
+    expect(wordNeedsRomaji("しゃしん", (kana) => ["しゃ", "し", "ん"].includes(kana))).toBe(false);
+  });
+
+  it("keeps the romaji on words with a pause or a long vowel, however well their kana are known", () => {
+    expect(wordNeedsRomaji("きって", () => true)).toBe(true);
+    expect(wordNeedsRomaji("コーヒー", () => true)).toBe(true);
   });
 });

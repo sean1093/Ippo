@@ -108,14 +108,24 @@ function toggle(key: "furigana" | "autoplay", title: string, hint: string): HTML
   );
 }
 
-function romajiRow(): HTMLElement {
-  const buttons = ROMAJI_CHOICES.map((choice) =>
+/**
+ * A row of mutually exclusive choices, e.g. 自動／一律顯示／不顯示. `pick` applies
+ * the choice; the row repaints itself so the pressed state follows the setting.
+ */
+function segmented<T>(
+  title: string,
+  hint: string | null,
+  choices: readonly { label: string; value: T }[],
+  current: () => T,
+  pick: (value: T) => void,
+): HTMLElement {
+  const buttons = choices.map((choice) =>
     h(
       "button",
       {
         type: "button",
         onclick: () => {
-          updateSettings({ romaji: choice.value });
+          pick(choice.value);
           paint();
         },
       },
@@ -124,7 +134,7 @@ function romajiRow(): HTMLElement {
   );
   const paint = () =>
     buttons.forEach((button, i) => {
-      const on = ROMAJI_CHOICES[i]?.value === settings.romaji;
+      const on = choices[i]?.value === current();
       button.setAttribute("aria-pressed", String(on));
       button.className = `flex-1 rounded-lg py-2 text-sm font-semibold transition ${on ? "bg-card text-ink shadow-sm" : "text-muted"}`;
     });
@@ -132,39 +142,32 @@ function romajiRow(): HTMLElement {
   return h(
     "div",
     { class: "py-3" },
-    h("p", { class: "font-medium" }, "羅馬拼音"),
-    h("p", { class: "mt-0.5 text-sm text-muted" }, "自動：熟悉的假名就不再標拼音"),
+    h("p", { class: "font-medium" }, title),
+    hint && h("p", { class: "mt-0.5 text-sm text-muted" }, hint),
     h("div", { class: "mt-2 flex gap-1 rounded-xl bg-hair/70 p-1" }, buttons),
   );
 }
 
-function rateRow(): HTMLElement {
-  const buttons = RATES.map((rate) =>
-    h(
-      "button",
-      {
-        type: "button",
-        onclick: () => {
-          updateSettings({ rate: rate.value });
-          paint();
-          void play(SAMPLE);
-        },
-      },
-      rate.label,
-    ),
+function romajiRow(): HTMLElement {
+  return segmented(
+    "羅馬拼音",
+    "自動：一個字的假名都熟了，就不再標那個字的拼音",
+    ROMAJI_CHOICES,
+    () => settings.romaji,
+    (romaji) => updateSettings({ romaji }),
   );
-  const paint = () =>
-    buttons.forEach((button, i) => {
-      const on = RATES[i]?.value === settings.rate;
-      button.setAttribute("aria-pressed", String(on));
-      button.className = `flex-1 rounded-lg py-2 text-sm font-semibold transition ${on ? "bg-card text-ink shadow-sm" : "text-muted"}`;
-    });
-  paint();
-  return h(
-    "div",
-    { class: "py-3" },
-    h("p", { class: "font-medium" }, "語速"),
-    h("div", { class: "mt-2 flex gap-1 rounded-xl bg-hair/70 p-1" }, buttons),
+}
+
+function rateRow(): HTMLElement {
+  return segmented(
+    "語速",
+    null,
+    RATES,
+    () => settings.rate,
+    (rate) => {
+      updateSettings({ rate });
+      void play(SAMPLE);
+    },
   );
 }
 

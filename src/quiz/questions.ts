@@ -1,5 +1,5 @@
+import { kanaCardId } from "../content/kana-progression";
 import type { Exercise, Jp, Lesson } from "../content/types";
-import { kanaCardId } from "../learn/cards";
 import { plain, readings, tiles } from "../lib/jp";
 import { kanaToRomaji } from "../lib/romaji";
 import { type Rng, shuffle } from "./drill";
@@ -183,8 +183,8 @@ export function lessonQuestions(
 
 /**
  * Alternating "read the kana" and "hear and pick the kana" questions over
- * `pool`. Each one reviews that kana's card, so chart practice counts towards
- * knowing it (a two-kana cell like きゃ has no card and is simply not tracked).
+ * `pool`. Each one carries that kana's card id, and every cell of the chart —
+ * both scripts, 拗音 included — is a card, so all chart practice is tracked.
  */
 export function kanaQuestions(pool: readonly string[], count: number, rng: Rng = Math.random): Question[] {
   return shuffle(pool, rng)
