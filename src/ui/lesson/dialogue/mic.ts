@@ -2,20 +2,10 @@ import { settings, updateSettings } from "../../../state";
 import { fill, h } from "../../dom";
 
 /**
- * The two things that must be true before the microphone is used: the learner
- * knows where their voice goes, and they are somewhere they can speak.
+ * The microphone notice: the learner knows where their voice goes before it is
+ * ever recorded or sent anywhere. Being somewhere one can speak at all is the
+ * other half, and lives in `src/ui/pause.ts`.
  */
-
-const HOUR = 36e5;
-
-/** Speaking practice is paused: the learner is on a train, in an office… */
-export function speakingOff(): boolean {
-  return settings.speakOffUntil > Date.now();
-}
-
-function clockTime(at: number): string {
-  return new Date(at).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit", hour12: false });
-}
 
 /**
  * Runs `action` once the learner has acknowledged the microphone notice,
@@ -50,56 +40,4 @@ export function withMicNotice(host: HTMLElement, action: () => void): void {
   );
   // The notice sits above the lines; the tap that asked for it may be a screen away.
   host.scrollIntoView({ block: "nearest", behavior: "smooth" });
-}
-
-/**
- * 「現在不方便說」: pauses the speaking exercises for an hour, with an undo.
- * `onChange` re-renders the mode, which then offers the quiet way through.
- */
-export function speakOffRow(onChange: () => void): HTMLElement {
-  const host = h("div", { class: "mt-3" });
-  const render = (): void => {
-    if (speakingOff()) {
-      fill(
-        host,
-        h(
-          "div",
-          { class: "flex items-center justify-between gap-3 rounded-2xl bg-card px-4 py-3 text-sm ring-1 ring-hair" },
-          h("span", { class: "text-muted" }, `已關閉說話練習，${clockTime(settings.speakOffUntil)} 之後恢復`),
-          h(
-            "button",
-            {
-              type: "button",
-              class: "shrink-0 font-semibold text-ai",
-              onclick: () => {
-                updateSettings({ speakOffUntil: 0 });
-                render();
-                onChange();
-              },
-            },
-            "取消",
-          ),
-        ),
-      );
-      return;
-    }
-    fill(
-      host,
-      h(
-        "button",
-        {
-          type: "button",
-          class: "h-9 rounded-full bg-card px-3 text-sm font-semibold text-muted ring-1 ring-hair active:scale-95",
-          onclick: () => {
-            updateSettings({ speakOffUntil: Date.now() + HOUR });
-            render();
-            onChange();
-          },
-        },
-        "現在不方便說",
-      ),
-    );
-  };
-  render();
-  return host;
 }

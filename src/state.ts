@@ -18,6 +18,10 @@ export interface Settings {
   micNoticeSeen: boolean;
   /** Speaking practice is paused until this time (epoch ms); 0 means it is on. */
   speakOffUntil: number;
+  /** Listening questions are paused until this time (epoch ms); 0 means they are on. */
+  listenOffUntil: number;
+  /** The learner has swiped between learning cards once, so the hint has done its job. */
+  swipeHintSeen: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -28,6 +32,8 @@ export const DEFAULT_SETTINGS: Settings = {
   voice: null,
   micNoticeSeen: false,
   speakOffUntil: 0,
+  listenOffUntil: 0,
+  swipeHintSeen: false,
 };
 
 /** Saved settings over the defaults; malformed fields fall back individually. */
@@ -37,14 +43,15 @@ export function parseSettings(data: unknown): Settings {
   // Romaji used to be a switch; "on" becomes the fading mode, which is what it meant to a learner.
   if (ROMAJI_MODES.includes(saved.romaji)) settings.romaji = saved.romaji as RomajiMode;
   else if (typeof saved.romaji === "boolean") settings.romaji = saved.romaji ? "auto" : "off";
-  for (const key of ["furigana", "autoplay", "micNoticeSeen"] as const) {
+  for (const key of ["furigana", "autoplay", "micNoticeSeen", "swipeHintSeen"] as const) {
     const value = saved[key];
     if (typeof value === "boolean") settings[key] = value;
   }
   if (typeof saved.rate === "number" && saved.rate >= 0.5 && saved.rate <= 1.5) settings.rate = saved.rate;
   if (typeof saved.voice === "string") settings.voice = saved.voice;
-  if (typeof saved.speakOffUntil === "number" && Number.isFinite(saved.speakOffUntil) && saved.speakOffUntil > 0) {
-    settings.speakOffUntil = saved.speakOffUntil;
+  for (const key of ["speakOffUntil", "listenOffUntil"] as const) {
+    const value = saved[key];
+    if (typeof value === "number" && Number.isFinite(value) && value > 0) settings[key] = value;
   }
   return settings;
 }

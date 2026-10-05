@@ -115,6 +115,30 @@ body {
   }
 }
 
+/* A learning step reached by swiping comes in from the direction of travel.
+   The reduced-motion rule below switches both off, like every other animation. */
+.slide-forward {
+  animation: slide-forward 0.22s ease-out;
+}
+
+.slide-back {
+  animation: slide-back 0.22s ease-out;
+}
+
+@keyframes slide-forward {
+  from {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
+
+@keyframes slide-back {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

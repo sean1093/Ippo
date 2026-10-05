@@ -109,6 +109,24 @@ export function stars(score: number, size = "h-4 w-4"): HTMLElement {
   );
 }
 
+/**
+ * A drill in which every question was skipped, e.g. a listening quiz paused
+ * halfway. There is nothing to score, and nothing is recorded.
+ */
+export function skippedView(subtitle: string): HTMLElement {
+  return h(
+    "div",
+    { class: "pop flex flex-col items-center pt-10 text-center" },
+    h("h1", { class: "text-2xl font-bold" }, "這次沒有作答"),
+    h("p", { class: "mt-1 text-muted" }, subtitle),
+    h(
+      "p",
+      { class: "mt-8 max-w-xs text-sm leading-relaxed text-ink/80" },
+      "題目都先跳過了，所以這次不計成績，也不會留下紀錄。方便聽的時候再回來做一次。",
+    ),
+  );
+}
+
 /** End-of-session summary. */
 export function resultView(title: string, subtitle: string, score: number): HTMLElement {
   const message =

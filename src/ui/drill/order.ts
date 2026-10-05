@@ -72,8 +72,8 @@ export function renderOrder(q: Order, surface: Surface, answered: Answered): voi
       { class: "pop" },
       h("h2", { class: "text-xl font-bold" }, "排出正確的日文句子"),
       h("p", { class: "mt-5 rounded-2xl bg-card p-4 text-lg font-medium ring-1 ring-hair" }, q.zh),
-      h("div", { class: "mt-6" }, line),
-      h("div", { class: "mt-6 flex flex-wrap justify-center gap-2" }, bank),
+      h("div", { class: "mt-6", "data-no-swipe": true }, line),
+      h("div", { class: "mt-6 flex flex-wrap justify-center gap-2", "data-no-swipe": true }, bank),
     ),
   );
   surface.footer.replaceChildren(check);

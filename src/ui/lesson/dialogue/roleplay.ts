@@ -6,7 +6,8 @@ import { canRecognize, type ListenError, recognize, stopListening } from "../../
 import { judgeSpeech, type Verdict } from "../../../lib/match";
 import { BUTTON, fill, h, icon, LABEL } from "../../dom";
 import { hush, jpText, play, speakButton } from "../../japanese";
-import { speakingOff, speakOffRow, withMicNotice } from "./mic";
+import { pauseRow, speakingOff } from "../../pause";
+import { withMicNotice } from "./mic";
 import { bubbleRow, type DialogueMode, pill, type Row } from "./shared";
 
 const GRADES: { grade: Grade; label: string; class: string }[] = [
@@ -325,7 +326,7 @@ export function roleplayMode(dialogue: Dialogue): DialogueMode {
       "div",
       { class: "pop" },
       h("p", { class: "text-sm leading-relaxed text-muted" }, "看中文，用日文回答。對方的台詞會自動播放。"),
-      speakOffRow(() => repaint?.()),
+      pauseRow("speak", () => repaint?.()),
       notice,
       transcript,
       stage,

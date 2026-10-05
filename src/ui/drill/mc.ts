@@ -1,8 +1,8 @@
 import { plain, romaji } from "../../lib/jp";
 import type { Mc, Option } from "../../quiz/questions";
-import { settings } from "../../state";
 import { h } from "../dom";
 import { jpText, play, slowButton, speakButton } from "../japanese";
+import { shouldAutoplay } from "../pause";
 import type { Answered, Surface } from "./shared";
 
 const OPTION =
@@ -93,5 +93,5 @@ export function renderMc(q: Mc, surface: Surface, answered: Answered): void {
     ),
   );
   surface.footer.replaceChildren(h("p", { class: "py-3 text-center text-sm text-muted" }, "選出一個答案"));
-  if (autoplay && settings.autoplay) void play(autoplay.jp, autoplay.button);
+  if (autoplay && shouldAutoplay()) void play(autoplay.jp, autoplay.button);
 }

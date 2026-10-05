@@ -2,9 +2,11 @@ import { COURSE, LESSONS } from "../content/course";
 import type { Unit } from "../content/types";
 import { bestChallenge } from "../learn/challenge";
 import { currentDue } from "../learn/memory";
+import { resumePoint, savedResume } from "../learn/resume";
 import { progress } from "../state";
 import { BUTTON, fill, h, icon } from "./dom";
 import { stars } from "./layout";
+import { lessonSteps } from "./lesson/steps";
 import { sessionLabel } from "./practice";
 
 /** The course path: progress, the next lesson to take, and every unit. */
@@ -12,6 +14,11 @@ export function renderHome(main: HTMLElement): void {
   const finished = LESSONS.filter((lesson) => progress[lesson.id]).length;
   const next = LESSONS.find((lesson) => !progress[lesson.id]);
   const due = currentDue().length;
+  // Carrying on where the learner stopped comes before starting the next lesson.
+  const saved = savedResume();
+  const paused = saved ? LESSONS.find((lesson) => lesson.id === saved.lesson) : undefined;
+  const pausedSteps = paused ? lessonSteps(paused).length : 0;
+  const pausedAt = paused ? resumePoint(paused.id, pausedSteps) : null;
   let number = 0;
 
   fill(
@@ -59,14 +66,21 @@ export function renderHome(main: HTMLElement): void {
         { class: "mt-3 h-2 overflow-hidden rounded-full bg-hair" },
         h("div", { class: "h-full rounded-full bg-ok", style: `width: ${(100 * finished) / LESSONS.length}%` }),
       ),
-      next
+      paused && pausedAt !== null
         ? h(
             "a",
-            { href: `#/lesson/${next.id}`, class: `${due > 0 ? BUTTON.secondary : BUTTON.primary} mt-4` },
-            finished === 0 ? "從第 1 課開始" : `繼續：第 ${LESSONS.indexOf(next) + 1} 課 ${next.title}`,
+            { href: `#/lesson/${paused.id}`, class: `${due > 0 ? BUTTON.secondary : BUTTON.primary} mt-4` },
+            `繼續第 ${LESSONS.indexOf(paused) + 1} 課（${pausedAt === pausedSteps ? "測驗" : `第 ${pausedAt + 1} / ${pausedSteps} 步`}）`,
             icon("next"),
           )
-        : h("p", { class: "mt-4 text-sm leading-relaxed" }, "全部課程都完成了！隨時可以回去任何一課複習或再做測驗。"),
+        : next
+          ? h(
+              "a",
+              { href: `#/lesson/${next.id}`, class: `${due > 0 ? BUTTON.secondary : BUTTON.primary} mt-4` },
+              finished === 0 ? "從第 1 課開始" : `繼續：第 ${LESSONS.indexOf(next) + 1} 課 ${next.title}`,
+              icon("next"),
+            )
+          : h("p", { class: "mt-4 text-sm leading-relaxed" }, "全部課程都完成了！隨時可以回去任何一課複習或再做測驗。"),
     ),
     finished === 0 &&
       h(

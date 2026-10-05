@@ -2,23 +2,28 @@ import { PAIR_CATEGORIES, type PairCategory } from "../content/pairs";
 import { studied } from "../learn/memory";
 import { accuracy, categoryScore, recordPairTrial, SESSION_TRIALS, type Side, type Trial, trials } from "../learn/pairs";
 import { type SpeakOptions, varietyVoices } from "../lib/speech";
-import { settings } from "../state";
-import { BUTTON, fill, h, icon, LABEL } from "./dom";
+import { BUTTON, fill, focusHeading, h, icon, LABEL } from "./dom";
 import { jpText, play, speakButton } from "./japanese";
 import { focusLayout, resultView } from "./layout";
+import { listeningOff, pauseRow, shouldAutoplay } from "./pause";
 
 /** Minimal-pair listening practice: pick the word you actually heard. */
 export function renderPairs(main: HTMLElement): void {
-  fill(
-    main,
-    h("h1", { class: "pt-3 text-2xl font-bold" }, "聽辨特訓"),
-    h(
-      "p",
-      { class: "mt-1 text-sm leading-relaxed text-muted" },
-      `華語裡沒有的差別，多聽幾次就會分得出來。每一輪 ${SESSION_TRIALS} 題，每題的語速、聲調都會變，裝置上有多個日文聲音時也會換聲音。聽完選出你聽到的那個詞。`,
-    ),
-    h("div", { class: "mt-5 flex flex-col gap-3" }, PAIR_CATEGORIES.map(categoryRow)),
-  );
+  const render = (): void => {
+    fill(
+      main,
+      h("h1", { class: "pt-3 text-2xl font-bold" }, "聽辨特訓"),
+      h(
+        "p",
+        { class: "mt-1 text-sm leading-relaxed text-muted" },
+        `華語裡沒有的差別，多聽幾次就會分得出來。每一輪 ${SESSION_TRIALS} 題，每題的語速、聲調都會變，裝置上有多個日文聲音時也會換聲音。聽完選出你聽到的那個詞。`,
+      ),
+      // Every category here is pure listening: with it paused there is nothing to open.
+      pauseRow("listen", render),
+      !listeningOff() && h("div", { class: "mt-5 flex flex-col gap-3" }, PAIR_CATEGORIES.map(categoryRow)),
+    );
+  };
+  render();
 }
 
 function categoryRow(category: PairCategory): HTMLElement {
@@ -59,10 +64,26 @@ export function renderPairsQuiz(root: HTMLElement, categoryId: string | undefine
 
   const start = () => {
     finished = false;
+    setProgress(0);
+    if (listeningOff()) {
+      // The whole exercise is a listening test: pause it and there is nothing to run.
+      fill(
+        main,
+        h(
+          "div",
+          { class: "pop pt-10 text-center" },
+          h("h1", { class: "text-2xl font-bold" }, category.title),
+          h("p", { class: "mt-2 text-sm leading-relaxed text-muted" }, "聽辨特訓全部都是聽力題，現在先暫停。"),
+        ),
+        pauseRow("listen", start),
+      );
+      fill(footer, h("a", { href: back, class: BUTTON.secondary }, "回聽辨特訓"));
+      focusHeading(main);
+      return;
+    }
     const session = trials(category.pairs);
     let index = 0;
     let right = 0;
-    setProgress(0);
 
     const finish = () => {
       finished = true;
@@ -74,6 +95,7 @@ export function renderPairsQuiz(root: HTMLElement, categoryId: string | undefine
         h("button", { type: "button", class: BUTTON.primary, onclick: start }, "再練一輪"),
         h("a", { href: back, class: `${BUTTON.secondary} mt-3` }, "回聽辨特訓"),
       );
+      focusHeading(main);
     };
 
     const next = () => {
@@ -89,6 +111,7 @@ export function renderPairsQuiz(root: HTMLElement, categoryId: string | undefine
         index += 1;
         setProgress(index / session.length);
       }, next);
+      focusHeading(main);
     };
     next();
   };
@@ -187,5 +210,5 @@ function renderTrial(
   );
   surface.footer.replaceChildren(h("p", { class: "py-3 text-center text-sm text-muted" }, "聽不清楚可以再點一次喇叭"));
   // Same rule as every other drill: the learner can switch the automatic playback off and press the speaker.
-  if (settings.autoplay) void play(target.jp, player, options);
+  if (shouldAutoplay()) void play(target.jp, player, options);
 }

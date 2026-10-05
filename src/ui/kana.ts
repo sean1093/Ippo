@@ -2,10 +2,11 @@ import { KANA_SECTIONS } from "../content/kana";
 import { answer, studied } from "../learn/memory";
 import { kanaToRomaji, toKatakana } from "../lib/romaji";
 import { kanaQuestions } from "../quiz/questions";
-import { BUTTON, fill, h } from "./dom";
+import { BUTTON, fill, focusHeading, h } from "./dom";
 import { runDrill } from "./drill";
 import { play } from "./japanese";
-import { focusLayout, resultView } from "./layout";
+import { focusLayout, resultView, skippedView } from "./layout";
+import { listeningOff } from "./pause";
 
 export type Script = "hira" | "kata";
 
@@ -99,24 +100,29 @@ export function renderKanaQuiz(root: HTMLElement, script: Script, sectionId: str
 
   const start = () => {
     finished = false;
-    const questions = kanaQuestions(pool, QUIZ_LENGTH);
+    const questions = kanaQuestions(pool, QUIZ_LENGTH, Math.random, { listening: !listeningOff() });
     setProgress(0);
     runDrill(questions, {
       main,
       footer,
-      onProgress: (cleared) => setProgress(cleared / questions.length),
+      onProgress: (cleared, left) => setProgress(cleared / Math.max(1, left)),
       onFirstAnswer: (question, outcome) => {
         if (question.card) answer(question.card, outcome.grade, "pick");
       },
-      onFinish: (score) => {
+      onFinish: (score, answered) => {
         finished = true;
-        studied();
+        if (answered > 0) studied();
         window.scrollTo(0, 0);
-        main.replaceChildren(resultView("練習完成！", `${SCRIPT_NAME[script]}・${section.title}`, score));
+        main.replaceChildren(
+          answered > 0
+            ? resultView("練習完成！", `${SCRIPT_NAME[script]}・${section.title}`, score)
+            : skippedView(`${SCRIPT_NAME[script]}・${section.title}`),
+        );
         footer.replaceChildren(
           h("button", { type: "button", class: BUTTON.primary, onclick: start }, "再練一次"),
           h("a", { href: back, class: `${BUTTON.secondary} mt-3` }, "回五十音表"),
         );
+        focusHeading(main);
       },
     });
   };

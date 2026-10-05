@@ -4,7 +4,7 @@ import { kanjiQuestion } from "../learn/kanji";
 import { answer, introduce, studied } from "../learn/memory";
 import { plain } from "../lib/jp";
 import { shuffle } from "../quiz/drill";
-import { BUTTON, fill, h, icon } from "./dom";
+import { BUTTON, fill, focusHeading, h, icon } from "./dom";
 import { runDrill } from "./drill";
 import { exampleRow, jpText, play, speakButton } from "./japanese";
 import { focusLayout, resultView } from "./layout";
@@ -127,6 +127,7 @@ export function renderKanjiQuiz(root: HTMLElement): void {
           h("button", { type: "button", class: BUTTON.primary, onclick: start }, "再測一次"),
           h("a", { href: back, class: `${BUTTON.secondary} mt-3` }, "回漢字小教室"),
         );
+        focusHeading(main);
       },
     });
   };
