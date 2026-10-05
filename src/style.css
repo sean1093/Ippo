@@ -1,0 +1,91 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  @apply bg-paper text-ink antialiased;
+  font-family: "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", system-ui, sans-serif;
+}
+
+/* Japanese glyphs for Japanese text: the page is zh-Hant, and shared kanji differ in shape. */
+:lang(ja) {
+  font-family: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Noto Sans CJK JP", "Yu Gothic",
+    "Meiryo", system-ui, sans-serif;
+}
+
+/* Lines break only between the words of Ippo markup, never inside one. */
+.jp {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  line-height: 2;
+}
+
+.jp rt {
+  font-size: 0.5em;
+  font-weight: 400;
+  color: theme("colors.muted");
+}
+
+.no-furigana .jp rt {
+  display: none;
+}
+
+.no-romaji .romaji {
+  display: none;
+}
+
+.blank {
+  display: inline-block;
+  min-width: 2.5em;
+  border-bottom: 2px solid theme("colors.ai.DEFAULT");
+}
+
+.pb-safe {
+  padding-bottom: calc(env(safe-area-inset-bottom) + 0.75rem);
+}
+
+.pt-safe {
+  padding-top: calc(env(safe-area-inset-top) + 0.75rem);
+}
+
+/* Last so it beats the button's resting colours. */
+.speaking {
+  @apply bg-ai text-white;
+  animation: speaking 1s ease-in-out infinite;
+}
+
+/* Labels inside a playing kana cell would otherwise stay grey on indigo. */
+.speaking * {
+  color: inherit;
+}
+
+@keyframes speaking {
+  50% {
+    box-shadow: 0 0 0 6px theme("colors.ai.soft");
+  }
+}
+
+.pop {
+  animation: pop 0.25s ease-out;
+}
+
+@keyframes pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}

@@ -1,0 +1,132 @@
+import type { Jp } from "../content/types";
+import { parse, plain, romaji } from "../lib/jp";
+import { speak, stopSpeaking } from "../lib/speech";
+import { h, icon } from "./dom";
+
+const SLOW_RATE = 0.6;
+
+const SIZES = {
+  xl: { jp: "text-4xl font-semibold", romaji: "mt-1 text-base" },
+  lg: { jp: "text-2xl font-medium", romaji: "mt-0.5 text-sm" },
+  md: { jp: "text-lg", romaji: "text-xs" },
+};
+
+/** A Japanese line with ruby over kanji and, unless switched off, romaji underneath. */
+export function jpText(markup: Jp, size: keyof typeof SIZES = "md", options: { romaji?: boolean } = {}): HTMLElement {
+  const line = h("span", { lang: "ja", class: `jp block ${SIZES[size].jp}` });
+  parse(markup).forEach((word, i) => {
+    if (i > 0) line.append(" ");
+    const span = h("span");
+    for (const segment of word) {
+      if (segment.ruby) {
+        span.append(h("ruby", null, segment.text, h("rt", null, segment.ruby)));
+        continue;
+      }
+      segment.text.split("＿").forEach((part, j) => {
+        if (j > 0) span.append(h("span", { class: "blank", "aria-label": "空格" }));
+        if (part) span.append(part);
+      });
+    }
+    line.append(span);
+  });
+  return h(
+    "span",
+    { class: "block" },
+    line,
+    options.romaji !== false && h("span", { class: `romaji block text-muted ${SIZES[size].romaji}` }, romaji(markup)),
+  );
+}
+
+// `generation` advances whenever new audio is requested, which is how a
+// running sequence notices it has been superseded; `voiceRun` keeps a stale
+// utterance from clearing the "speaking" mark of the one that replaced it.
+let generation = 0;
+let voiceRun = 0;
+
+async function voice(markup: Jp, button: HTMLElement | undefined, rate?: number): Promise<void> {
+  const run = ++voiceRun;
+  for (const el of document.querySelectorAll(".speaking")) el.classList.remove("speaking");
+  button?.classList.add("speaking");
+  await speak(markup, rate);
+  if (run === voiceRun) button?.classList.remove("speaking");
+}
+
+/** Speaks `markup`, marking `button` while it plays. Interrupts anything already playing. */
+export function play(markup: Jp, button?: HTMLElement, rate?: number): Promise<void> {
+  generation += 1;
+  return voice(markup, button, rate);
+}
+
+/** Speaks lines one after another; stops as soon as anything else plays or `hush` is called. */
+export async function playSequence(lines: { jp: Jp; button?: HTMLElement }[], onLine: (i: number) => void): Promise<void> {
+  const mine = ++generation;
+  for (const [i, line] of lines.entries()) {
+    onLine(i);
+    await voice(line.jp, line.button);
+    if (mine !== generation) return;
+    const { promise, resolve } = Promise.withResolvers<void>();
+    window.setTimeout(resolve, 400);
+    await promise;
+    if (mine !== generation) return;
+  }
+}
+
+/** Silences everything, e.g. when leaving a page. */
+export function hush(): void {
+  generation += 1;
+  voiceRun += 1;
+  stopSpeaking();
+  for (const el of document.querySelectorAll(".speaking")) el.classList.remove("speaking");
+}
+
+const SPEAK_SIZES = {
+  sm: ["h-9 w-9", "h-4 w-4"],
+  md: ["h-11 w-11", "h-5 w-5"],
+  lg: ["h-16 w-16", "h-7 w-7"],
+} as const;
+
+/** Round speaker button. */
+export function speakButton(markup: Jp, size: keyof typeof SPEAK_SIZES = "md", rate?: number): HTMLButtonElement {
+  const [box, glyph] = SPEAK_SIZES[size];
+  const button = h(
+    "button",
+    {
+      type: "button",
+      class: `inline-flex shrink-0 items-center justify-center rounded-full bg-ai-soft text-ai transition active:scale-95 ${box}`,
+      "aria-label": `播放「${plain(markup)}」`,
+    },
+    icon("speaker", glyph),
+  );
+  button.addEventListener("click", (event) => {
+    event.stopPropagation();
+    void play(markup, button, rate);
+  });
+  return button;
+}
+
+/** Pill button that plays `markup` slowly. */
+export function slowButton(markup: Jp): HTMLButtonElement {
+  const button = h(
+    "button",
+    {
+      type: "button",
+      class:
+        "inline-flex h-11 items-center gap-1.5 rounded-full bg-white px-4 text-sm font-semibold text-ai ring-1 ring-hair transition active:scale-95",
+      "aria-label": `慢速播放「${plain(markup)}」`,
+    },
+    icon("speaker", "h-4 w-4"),
+    "慢速",
+  );
+  button.addEventListener("click", () => void play(markup, button, SLOW_RATE));
+  return button;
+}
+
+/** A sentence with its audio and translation, as used for examples. */
+export function exampleRow(markup: Jp, zh: string): HTMLElement {
+  return h(
+    "div",
+    { class: "flex items-start gap-3 px-4 py-3" },
+    speakButton(markup, "sm"),
+    h("div", { class: "min-w-0 flex-1" }, jpText(markup), h("p", { class: "mt-0.5 text-sm text-ink/75" }, zh)),
+  );
+}
