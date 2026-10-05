@@ -1,5 +1,6 @@
+import type { Lesson } from "../content/types";
 import { asRecord, defineStore } from "../lib/store";
-import { type Card, CARDS } from "./cards";
+import { type Card, CARDS, lessonCards } from "./cards";
 import { enrol, type Grade, type Memory, recallProbability, schedule } from "./scheduler";
 
 /** One answer, kept only as long as the delayed-recall statistic looks back. */
@@ -152,12 +153,13 @@ export function weakestIds(data: MemoryData, now: Date, count: number, catalog: 
  * Ids worth slipping into another lesson's quiz: cards the learner already has
  * from elsewhere in the course, so new material is practised against old.
  * Overdue cards come first (the most overdue of all), then the ones the model
- * no longer trusts; cards from `excludeSource` are the lesson's own.
+ * no longer trusts. `excludeIds` are the lesson's own cards — a card can be
+ * re-taught by a later lesson, so its `source` alone does not say who owns it.
  */
 export function pickMixIns(
   data: MemoryData,
   catalog: Catalog,
-  excludeSource: string,
+  excludeIds: ReadonlySet<string>,
   now: Date,
   count: number,
 ): string[] {
@@ -166,8 +168,7 @@ export function pickMixIns(
   const due: [string, number][] = [];
   const fading: [string, number][] = [];
   for (const [id, memory] of Object.entries(data.cards)) {
-    const card = catalog.get(id);
-    if (!card || card.source === excludeSource) continue;
+    if (!catalog.has(id) || excludeIds.has(id)) continue;
     if (memory.due < limit) due.push([id, memory.due]);
     else {
       const recall = recallProbability(memory, now);
@@ -273,9 +274,10 @@ export function currentWeakest(count: number, now = new Date()): string[] {
   return weakestIds(memory, now, count, CARDS);
 }
 
-/** Cards from the rest of the course to mix into `lessonId`'s quiz. */
-export function currentMixIns(lessonId: string, count: number, now = new Date()): string[] {
-  return pickMixIns(memory, CARDS, lessonId, now, count);
+/** Cards from the rest of the course to mix into `lesson`'s quiz. */
+export function currentMixIns(lesson: Lesson, count: number, now = new Date()): string[] {
+  const own = new Set(lessonCards(lesson).map((card) => card.id));
+  return pickMixIns(memory, CARDS, own, now, count);
 }
 
 export function currentStats(now = new Date()): Stats {

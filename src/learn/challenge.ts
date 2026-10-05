@@ -1,8 +1,9 @@
 import type { Unit } from "../content/types";
 import { asRecord, defineStore } from "../lib/store";
 import { type Rng, shuffle } from "../quiz/drill";
-import { decoys, exerciseQuestion, mc, type Question } from "../quiz/questions";
+import { exerciseQuestion, type Question } from "../quiz/questions";
 import { type Card, lessonCards } from "./cards";
+import { meaningQuestion } from "./review";
 import type { Memory } from "./scheduler";
 
 /** Questions in a unit challenge: a real test, still one sitting on a bus. */
@@ -80,30 +81,13 @@ export function challengeQuestions(
   return roundRobin(
     shuffle(
       [
-        say.map((card): Question => ({ kind: "recall", zh: card.zh, jp: card.jp, card: card.id })),
+        say.map((card) => meaningQuestion(card, "say", cards, rng)),
         listen.map((card) => meaningQuestion(card, "listen", cards, rng)),
-        word.map((card) => meaningQuestion(card, "show", cards, rng)),
+        word.map((card) => meaningQuestion(card, "recognize", cards, rng)),
         exercises.map((ex) => exerciseQuestion(ex, rng)),
       ],
       rng,
     ),
-  );
-}
-
-/** Pick the Chinese for a card, heard only (`listen`) or seen and heard (`show`). */
-function meaningQuestion(card: Card, mode: "listen" | "show", pool: readonly Card[], rng: Rng): Question {
-  const peers = pool.filter((other) => other.kind === card.kind && other.id !== card.id);
-  return mc(
-    {
-      prompt: mode === "listen" ? "聽聽看，是什麼意思？" : "這是什麼意思？",
-      jp: card.jp,
-      mode,
-      say: card.jp,
-      card: card.id,
-    },
-    { text: card.zh },
-    decoys(card, shuffle(peers, rng)).map((other) => ({ text: other.zh })),
-    rng,
   );
 }
 
@@ -143,6 +127,11 @@ export function parseChallenges(data: unknown): Record<string, ChallengeRecord> 
 
 const store = defineStore("challenges", 1, parseChallenges);
 let records = store.load();
+
+export function resetChallenges(): void {
+  records = {};
+  store.save(records);
+}
 
 export function bestChallenge(unitId: string): number | undefined {
   return records[unitId]?.best;

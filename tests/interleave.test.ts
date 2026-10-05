@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { COURSE, LESSONS } from "../src/content/course";
 import { validateCourse } from "../src/content/validate";
-import { type Card, lessonCards } from "../src/learn/cards";
+import { CARDS, type Card, lessonCards } from "../src/learn/cards";
 import { challengeQuestions, CHALLENGE_SIZE } from "../src/learn/challenge";
 import { type MemoryData, pickMixIns } from "../src/learn/memory";
 import type { Memory } from "../src/learn/scheduler";
@@ -46,6 +46,7 @@ describe("pickMixIns", () => {
       card("own", "this-lesson"),
     ].map((c) => [c.id, c]),
   );
+  const own = new Set(["own"]);
   const data: MemoryData = {
     cards: {
       overdue: memory({ due: NOW.getTime() - 5 * DAY }),
@@ -61,22 +62,37 @@ describe("pickMixIns", () => {
   };
 
   it("takes the most overdue cards first, then the ones slipping away", () => {
-    expect(pickMixIns(data, catalog, "this-lesson", NOW, 3)).toEqual(["overdue", "due-today", "fading"]);
+    expect(pickMixIns(data, catalog, own, NOW, 3)).toEqual(["overdue", "due-today", "fading"]);
   });
 
   it("never mixes in the lesson's own cards or ids the course no longer teaches", () => {
-    const ids = pickMixIns(data, catalog, "this-lesson", NOW, 10);
+    const ids = pickMixIns(data, catalog, own, NOW, 10);
     expect(ids).not.toContain("own");
     expect(ids).not.toContain("removed");
   });
 
   it("leaves out cards that are still safely remembered", () => {
-    expect(pickMixIns(data, catalog, "this-lesson", NOW, 10)).not.toContain("solid");
+    expect(pickMixIns(data, catalog, own, NOW, 10)).not.toContain("solid");
   });
 
   it("gives at most the asked-for number", () => {
-    expect(pickMixIns(data, catalog, "this-lesson", NOW, 2)).toEqual(["overdue", "due-today"]);
-    expect(pickMixIns(data, catalog, "this-lesson", NOW, 0)).toEqual([]);
+    expect(pickMixIns(data, catalog, own, NOW, 2)).toEqual(["overdue", "due-today"]);
+    expect(pickMixIns(data, catalog, own, NOW, 0)).toEqual([]);
+  });
+
+  it("counts a card an earlier lesson taught first as this lesson's own", () => {
+    // A lesson may re-teach a card the course credits to an earlier lesson; asking
+    // it as a mix-in would put the same card in the quiz twice.
+    const lesson = LESSONS.find((l) => l.id === "thanks")!;
+    const shared = lessonCards(lesson).find((c) => CARDS.get(c.id)?.source !== lesson.id);
+    expect(shared).toBeDefined();
+    const ownIds = new Set(lessonCards(lesson).map((c) => c.id));
+    const overdue: MemoryData = {
+      cards: { [shared!.id]: memory({ due: NOW.getTime() - 5 * DAY }) },
+      log: [],
+      days: [],
+    };
+    expect(pickMixIns(overdue, CARDS, ownIds, NOW, 3)).toEqual([]);
   });
 });
 

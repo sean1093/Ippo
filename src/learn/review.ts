@@ -29,8 +29,11 @@ export function reviewQuestion(card: Card, memory: Memory | undefined, pool: Ite
   }
 }
 
-/** Wrong options are cards of the same kind, from the same lesson first. */
-function meaningQuestion(card: Card, stage: Stage, pool: Iterable<Card>, rng: Rng): Question {
+/**
+ * Pick what a word or sentence means: heard only, or shown and heard. Wrong
+ * options are cards of the same kind, from the same lesson first.
+ */
+export function meaningQuestion(card: Card, stage: Stage, pool: Iterable<Card>, rng: Rng): Question {
   if (stage === "say") return { kind: "recall", zh: card.zh, jp: card.jp, card: card.id };
   const peers = [...pool].filter((other) => other.kind === card.kind && other.id !== card.id);
   const sameSource = peers.filter((other) => other.source === card.source);

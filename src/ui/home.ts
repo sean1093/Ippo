@@ -146,7 +146,7 @@ function challengeRow(unit: Unit): HTMLElement {
     {
       href: `#/challenge/${unit.id}`,
       class: "flex items-center gap-3 bg-shu-soft px-4 py-3.5 transition active:bg-shu/20",
-      "aria-label": `單元挑戰：${unit.title}`,
+      "aria-label": `單元挑戰：${unit.title}${best === undefined ? "" : `（最佳成績 ${best}%）`}`,
     },
     h(
       "span",
