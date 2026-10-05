@@ -1,4 +1,6 @@
 import { COURSE, LESSONS } from "../content/course";
+import type { Unit } from "../content/types";
+import { bestChallenge } from "../learn/challenge";
 import { currentDue } from "../learn/memory";
 import { progress } from "../state";
 import { BUTTON, fill, h, icon } from "./dom";
@@ -124,8 +126,44 @@ export function renderHome(main: HTMLElement): void {
               ),
             );
           }),
+          h("li", null, challengeRow(unit)),
         ),
       ),
     ),
+  );
+}
+
+/**
+ * The unit's own challenge, at the end of its lessons: the same row shape in
+ * the unit's accent colour. Never locked — taking it early just means a hint
+ * that the lessons come first.
+ */
+function challengeRow(unit: Unit): HTMLElement {
+  const best = bestChallenge(unit.id);
+  const left = unit.lessons.filter((lesson) => !progress[lesson.id]).length;
+  return h(
+    "a",
+    {
+      href: `#/challenge/${unit.id}`,
+      class: "flex items-center gap-3 bg-shu-soft px-4 py-3.5 transition active:bg-shu/20",
+      "aria-label": `單元挑戰：${unit.title}`,
+    },
+    h(
+      "span",
+      { class: "flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-shu text-white" },
+      icon("star", "h-5 w-5"),
+    ),
+    h(
+      "span",
+      { class: "min-w-0 flex-1" },
+      h("span", { class: "block font-semibold text-shu" }, "單元挑戰"),
+      h(
+        "span",
+        { class: "block truncate text-sm text-muted" },
+        left > 0 ? "建議先完成這個單元的課" : "把這個單元的內容混在一起考",
+      ),
+    ),
+    best !== undefined && stars(best),
+    icon("next", "h-4 w-4 shrink-0 text-hair"),
   );
 }

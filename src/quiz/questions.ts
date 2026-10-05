@@ -80,7 +80,8 @@ export function decoys<T extends { jp: Jp; zh: string }>(item: T, candidates: re
   return out;
 }
 
-function exerciseQuestion(ex: Exercise, rng: Rng): Question {
+/** One authored exercise as a question; `rng` shuffles the options and the word bank. */
+export function exerciseQuestion(ex: Exercise, rng: Rng): Question {
   switch (ex.kind) {
     case "choice": {
       const say = ex.jp?.includes(BLANK) ? ex.jp.replace(BLANK, ex.answer) : ex.answer;
@@ -111,15 +112,35 @@ function exerciseQuestion(ex: Exercise, rng: Rng): Question {
 }
 
 /**
+ * `extra` placed at even gaps between `base` items, so a quiz alternates
+ * between the two instead of showing one block and then the other.
+ */
+function spread(base: readonly Question[], extra: readonly Question[]): Question[] {
+  const out: Question[] = [];
+  let next = 0;
+  for (let i = 0; i < base.length; i++) {
+    while (next < extra.length && Math.round(((next + 1) * base.length) / (extra.length + 1)) === i) {
+      out.push(extra[next]!);
+      next += 1;
+    }
+    out.push(base[i]!);
+  }
+  out.push(...extra.slice(next));
+  return out;
+}
+
+/**
  * The quiz for a lesson: generated vocabulary questions first (meaning,
  * listening, and Chinese → Japanese in rotation), then the hand-written
  * exercises in authored order, then "say it" lines from the dialogue.
- * `earlier` supplies extra wrong answers.
+ * `earlier` supplies extra wrong answers; `mixIns` are review questions from
+ * the rest of the course, spread among the vocabulary questions.
  */
 export function lessonQuestions(
   lesson: Lesson,
   earlier: readonly { jp: Jp; zh: string }[],
   rng: Rng = Math.random,
+  mixIns: readonly Question[] = [],
 ): Question[] {
   const kinds = shuffle(["meaning", "listen", "reverse"] as const, rng);
   const vocab = shuffle(lesson.words, rng)
@@ -156,7 +177,7 @@ export function lessonQuestions(
   const recall = shuffle(fit.length >= RECALL_QUESTIONS ? fit : lines, rng)
     .slice(0, RECALL_QUESTIONS)
     .map((line): Recall => ({ kind: "recall", zh: line.zh, jp: line.jp, card: line.jp }));
-  return [...vocab, ...lesson.exercises.map((ex) => exerciseQuestion(ex, rng)), ...recall];
+  return [...spread(vocab, mixIns), ...lesson.exercises.map((ex) => exerciseQuestion(ex, rng)), ...recall];
 }
 
 /** Alternating "read the kana" and "hear and pick the kana" questions over `pool`. */

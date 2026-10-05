@@ -72,6 +72,14 @@ src/learn/
 - **作答怎麼進排程**：任何題目只要帶 `card`，`runDrill` 的 `onFirstAnswer` 會把第一次作答的結果交給 `memory.answer()`。新題型想計入複習，只要在題目上填 `card`。
 - **成效指標** `computeStats()`：連續學習天數、預估記得的單字（最近一次答錯的不算）、說得出口的句子與說法（最近一次「說說看」）、隔 3 天以上的複習答對率（作答紀錄只保留 30 天）。
 
+## 混合複習與單元挑戰
+
+新東西要跟舊東西放在一起練，才學得牢。課程裡有兩個地方做這件事：
+
+- **課程測驗混入舊內容**：`memory.ts` 的 `pickMixIns()` 挑出「這一課以外」而且該複習的卡片（先到期的，最到期的排前面；再來是模型估計快忘掉的，低於 90% 才算）。`src/ui/lesson/player.ts` 用 `reviewQuestions()` 把它們變成題目，交給 `lessonQuestions(lesson, earlier, rng, mixIns)`，平均散在自動出的單字題之間（不是全部擠在開頭或結尾）。這些題目帶 `card`，所以作答一樣會進排程。
+- **單元挑戰**：`src/learn/challenge.ts` 的 `challengeQuestions(unit, memoryOf, rng)` 只用那個單元的課，混出約 12 題：聽對方的台詞、說自己的台詞、單元裡手寫的題目（選句與句子重組）、單字。沒有會話的發音單元就只用單字，所以每個單元都出得來。出題順序輪流取用，不會連續兩題同一種。最近答錯或還不熟的卡片排前面。
+- 單元要有 kebab-case 的 `id`（`src/content/types.ts` 的 `Unit`），網址 `#/challenge/<unitId>` 與最佳成績（`ippo.challenges`）都用它；`validateCourse()` 會擋重複或格式不對的 id。
+
 ## 測試
 
 - `npm test`：單元測試與整個課程的內容檢查。

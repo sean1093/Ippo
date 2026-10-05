@@ -27,6 +27,8 @@ const LOG_DAYS = 30;
 // A backstop on top of the 30-day window: rewriting the store on every answer must stay cheap.
 const LOG_LIMIT = 2000;
 const DAYS_LIMIT = 400;
+/** FSRS's target retention: below it a card is already slipping out of memory. */
+const FADING = 0.9;
 const GRADES: readonly unknown[] = ["again", "hard", "good"];
 const NUMBERS = ["due", "stability", "difficulty", "reps", "lapses", "state", "scheduledDays", "last", "level"] as const;
 
@@ -146,6 +148,37 @@ export function weakestIds(data: MemoryData, now: Date, count: number, catalog: 
     .map(([id]) => id);
 }
 
+/**
+ * Ids worth slipping into another lesson's quiz: cards the learner already has
+ * from elsewhere in the course, so new material is practised against old.
+ * Overdue cards come first (the most overdue of all), then the ones the model
+ * no longer trusts; cards from `excludeSource` are the lesson's own.
+ */
+export function pickMixIns(
+  data: MemoryData,
+  catalog: Catalog,
+  excludeSource: string,
+  now: Date,
+  count: number,
+): string[] {
+  if (count <= 0) return [];
+  const limit = endOfDay(now);
+  const due: [string, number][] = [];
+  const fading: [string, number][] = [];
+  for (const [id, memory] of Object.entries(data.cards)) {
+    const card = catalog.get(id);
+    if (!card || card.source === excludeSource) continue;
+    if (memory.due < limit) due.push([id, memory.due]);
+    else {
+      const recall = recallProbability(memory, now);
+      if (recall < FADING) fading.push([id, recall]);
+    }
+  }
+  due.sort(([, a], [, b]) => a - b);
+  fading.sort(([, a], [, b]) => a - b);
+  return [...due, ...fading].slice(0, count).map(([id]) => id);
+}
+
 export interface Stats {
   /** Known cards the learner has met. */
   learned: number;
@@ -238,6 +271,11 @@ export function currentNextDue(now = new Date()): NextDue | null {
 
 export function currentWeakest(count: number, now = new Date()): string[] {
   return weakestIds(memory, now, count, CARDS);
+}
+
+/** Cards from the rest of the course to mix into `lessonId`'s quiz. */
+export function currentMixIns(lessonId: string, count: number, now = new Date()): string[] {
+  return pickMixIns(memory, CARDS, lessonId, now, count);
 }
 
 export function currentStats(now = new Date()): Stats {

@@ -1,7 +1,8 @@
 import { LESSONS } from "../../content/course";
 import type { Lesson } from "../../content/types";
 import { lessonCards } from "../../learn/cards";
-import { answer, introduce, studied } from "../../learn/memory";
+import { answer, currentMixIns, introduce, memoryOf, studied } from "../../learn/memory";
+import { reviewQuestions } from "../../learn/review";
 import { lessonQuestions } from "../../quiz/questions";
 import { completeLesson, progress } from "../../state";
 import { BUTTON, fill, h, icon, LABEL } from "../dom";
@@ -9,6 +10,9 @@ import { runDrill } from "../drill";
 import { hush } from "../japanese";
 import { focusLayout, resultView, stars } from "../layout";
 import { lessonSteps } from "./steps";
+
+/** Cards from earlier lessons mixed into one lesson quiz. */
+const MIX_INS = 3;
 
 /**
  * One lesson, one screen at a time: intro → learning steps → quiz → result.
@@ -20,7 +24,10 @@ export function renderLesson(root: HTMLElement, lesson: Lesson): void {
   const next = LESSONS[position + 1];
   const earlier = LESSONS.slice(0, position).flatMap((l) => l.words);
   const steps = lessonSteps(lesson);
-  let questions = lessonQuestions(lesson, earlier);
+  // Old material comes back inside the quiz, interleaved with the new words, so
+  // the lesson is never a block of only-just-taught answers.
+  const mixIns = reviewQuestions(currentMixIns(lesson.id, MIX_INS), memoryOf);
+  let questions = lessonQuestions(lesson, earlier, Math.random, mixIns);
   const total = steps.length + questions.length;
   let phase: "intro" | "learn" | "quiz" | "done" = "intro";
 
@@ -137,7 +144,7 @@ export function renderLesson(root: HTMLElement, lesson: Lesson): void {
           type: "button",
           class: `${BUTTON.secondary} mt-3`,
           onclick: () => {
-            questions = lessonQuestions(lesson, earlier);
+            questions = lessonQuestions(lesson, earlier, Math.random, mixIns);
             quiz();
           },
         },

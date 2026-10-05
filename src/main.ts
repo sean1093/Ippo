@@ -1,9 +1,10 @@
 import "./style.css";
-import { LESSONS } from "./content/course";
+import { COURSE, LESSONS } from "./content/course";
 import { lessonCards } from "./learn/cards";
 import { introduce } from "./learn/memory";
 import { onVoicesChanged } from "./lib/speech";
 import { applySettings, progress } from "./state";
+import { renderChallenge } from "./ui/challenge";
 import { renderHome } from "./ui/home";
 import { hush } from "./ui/japanese";
 import { renderKana, renderKanaQuiz } from "./ui/kana";
@@ -30,6 +31,13 @@ const PAGES: Record<string, Page> = {
     render(root, [id]) {
       const lesson = LESSONS.find((l) => l.id === id);
       if (lesson) renderLesson(root, lesson);
+      else location.replace("#/");
+    },
+  },
+  challenge: {
+    render(root, [id]) {
+      const unit = COURSE.find((u) => u.id === id);
+      if (unit) renderChallenge(root, unit);
       else location.replace("#/");
     },
   },

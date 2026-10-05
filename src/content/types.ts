@@ -70,6 +70,8 @@ export interface Lesson {
 }
 
 export interface Unit {
+  /** Stable kebab-case id; challenge results are stored under it, so never rename a shipped id. */
+  id: string;
   title: string;
   summary: string;
   lessons: Lesson[];
