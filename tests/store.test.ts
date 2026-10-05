@@ -50,8 +50,14 @@ describe("parseSettings", () => {
   });
 
   it("keeps valid fields and drops malformed ones individually", () => {
-    const parsed = parseSettings({ romaji: false, furigana: "yes", rate: 9, voice: "Kyoko" });
-    expect(parsed).toEqual({ ...DEFAULT_SETTINGS, romaji: false, voice: "Kyoko" });
+    const parsed = parseSettings({ romaji: "always", furigana: "yes", rate: 9, voice: "Kyoko" });
+    expect(parsed).toEqual({ ...DEFAULT_SETTINGS, romaji: "always", voice: "Kyoko" });
+  });
+
+  it("reads the old romaji switch as a mode: on fades them out, off hides them", () => {
+    expect(parseSettings({ romaji: true }).romaji).toBe("auto");
+    expect(parseSettings({ romaji: false }).romaji).toBe("off");
+    expect(parseSettings({ romaji: "sometimes" }).romaji).toBe("auto");
   });
 });
 

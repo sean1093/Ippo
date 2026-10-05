@@ -1,3 +1,4 @@
+import { kanaCardId } from "../content/kana-progression";
 import type { Lesson } from "../content/types";
 import { asRecord, defineStore } from "../lib/store";
 import { type Card, CARDS, lessonCards } from "./cards";
@@ -227,6 +228,14 @@ export function computeStats(data: MemoryData, catalog: Catalog, now: Date): Sta
   return { learned, wordsKnown, said, delayed, streak };
 }
 
+/**
+ * Whether a card is solid enough to stop propping it up — two spaced successes
+ * and no miss since. Romaji fades away kana by kana on this rule.
+ */
+export function mastered(memory: Memory | undefined): boolean {
+  return memory !== undefined && memory.level >= 2 && memory.grade !== "again";
+}
+
 // ---- The learner's live memory -------------------------------------------------
 
 const store = defineStore("memory", 1, parseMemoryData);
@@ -234,6 +243,12 @@ let memory = store.load();
 
 export function memoryOf(id: string): Memory | undefined {
   return memory.cards[id];
+}
+
+/** Whether the learner reads `kana` without help; unknown kana (not taught here) never count. */
+export function kanaMastered(kana: string): boolean {
+  const id = kanaCardId(kana);
+  return CARDS.has(id) && mastered(memory.cards[id]);
 }
 
 /** Records the first answer to a card's question. Ids the course does not teach are ignored. */

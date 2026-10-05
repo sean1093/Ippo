@@ -1,3 +1,4 @@
+import { KATAKANA } from "../content/kana-progression";
 import { type Rng, shuffle } from "../quiz/drill";
 import { decoys, mc, type Question } from "../quiz/questions";
 import { type Card, CARDS } from "./cards";
@@ -22,6 +23,8 @@ export function reviewQuestion(card: Card, memory: Memory | undefined, pool: Ite
     case "word":
     case "sentence":
       return meaningQuestion(card, stageOf(card, memory), pool, rng);
+    case "kana":
+      return kanaQuestion(card, stageOf(card, memory), pool, rng);
     default: {
       const unhandled: never = card.kind;
       throw new Error(`no review question for card kind ${String(unhandled)}`);
@@ -45,6 +48,29 @@ export function meaningQuestion(card: Card, stage: Stage, pool: Iterable<Card>, 
       : { prompt: "這是什麼意思？", jp: card.jp, mode: "show", say: card.jp, card: card.id },
     { text: card.zh },
     others.map((other) => ({ text: other.zh })),
+    rng,
+  );
+}
+
+/** A kana is read before it is heard: reading it never shows romaji, and the options stay in one script. */
+function kanaQuestion(card: Card, stage: Stage, pool: Iterable<Card>, rng: Rng): Question {
+  const katakana = KATAKANA.test(card.jp);
+  const peers = [...pool].filter((other) => other.kind === "kana" && other.id !== card.id);
+  const sameScript = peers.filter((other) => KATAKANA.test(other.jp) === katakana);
+  const elsewhere = peers.filter((other) => KATAKANA.test(other.jp) !== katakana);
+  const others = decoys(card, [...shuffle(sameScript, rng), ...shuffle(elsewhere, rng)]);
+  if (stage === "recognize") {
+    return mc(
+      { prompt: "這個假名怎麼唸？", jp: card.jp, mode: "read", say: card.jp, card: card.id },
+      { text: card.zh },
+      others.map((other) => ({ text: other.zh })),
+      rng,
+    );
+  }
+  return mc(
+    { prompt: "聽聽看，是哪一個假名？", jp: card.jp, mode: "listen", hideRomaji: true, say: card.jp, card: card.id },
+    { jp: card.jp },
+    others.map((other) => ({ jp: other.jp })),
     rng,
   );
 }

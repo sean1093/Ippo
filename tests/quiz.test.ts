@@ -76,7 +76,8 @@ describe("lessonQuestions", () => {
   );
 
   it("offers four options for every generated vocabulary question", () => {
-    const lesson = LESSONS[0]!;
+    // The generated questions come first, one per word up to six.
+    const lesson = LESSONS.find((l) => l.words.length >= 6)!;
     const vocab = lessonQuestions(lesson, [], seeded(7)).slice(0, 6);
     for (const q of vocab) expect(q.kind === "mc" && q.options.length).toBe(4);
   });

@@ -1,6 +1,7 @@
 import { LESSONS } from "../../content/course";
+import { NEW_KANA } from "../../content/kana-progression";
 import type { Lesson } from "../../content/types";
-import { lessonCards } from "../../learn/cards";
+import { lessonCardIds } from "../../learn/cards";
 import { answer, currentMixIns, introduce, memoryOf, studied } from "../../learn/memory";
 import { reviewQuestions } from "../../learn/review";
 import { lessonQuestions, type Question } from "../../quiz/questions";
@@ -23,6 +24,7 @@ export function renderLesson(root: HTMLElement, lesson: Lesson): void {
   const position = LESSONS.indexOf(lesson);
   const next = LESSONS[position + 1];
   const earlier = LESSONS.slice(0, position).flatMap((l) => l.words);
+  const newKana = NEW_KANA.get(lesson.id) ?? [];
   const steps = lessonSteps(lesson);
   // Old material comes back inside the quiz, interleaved with the new words, so
   // the lesson is never a block of only-just-taught answers. Built per run: a
@@ -73,6 +75,7 @@ export function renderLesson(root: HTMLElement, lesson: Lesson): void {
           h(
             "ul",
             { class: "mt-4 list-disc space-y-1 pl-5 text-sm text-ink/80 marker:text-shu" },
+            newKana.length > 0 && h("li", null, `新假名 ${newKana.length} 個`),
             h("li", null, `單字 ${lesson.words.length} 個`),
             lesson.patterns.length > 0 && h("li", null, `句型 ${lesson.patterns.length} 個`),
             lesson.dialogue && h("li", null, `情境會話：${lesson.dialogue.scene}`),
@@ -149,7 +152,7 @@ export function renderLesson(root: HTMLElement, lesson: Lesson): void {
   function finish(score: number): void {
     phase = "done";
     completeLesson(lesson.id, score);
-    introduce(lessonCards(lesson).map((card) => card.id));
+    introduce(lessonCardIds(lesson));
     studied();
     setProgress(1);
     window.scrollTo(0, 0);

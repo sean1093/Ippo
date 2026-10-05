@@ -1,40 +1,60 @@
+import { wordNeedsRomaji } from "../content/kana-progression";
 import type { Jp } from "../content/types";
-import { parse, plain, romaji } from "../lib/jp";
+import { kanaMastered } from "../learn/memory";
+import { parse, plain } from "../lib/jp";
+import { wordToRomaji } from "../lib/romaji";
 import { speak, stopSpeaking } from "../lib/speech";
+import { settings } from "../state";
 import { h, icon } from "./dom";
 
 const SLOW_RATE = 0.6;
 
 const SIZES = {
-  xl: { jp: "text-4xl font-semibold", romaji: "mt-1 text-base" },
-  lg: { jp: "text-2xl font-medium", romaji: "mt-0.5 text-sm" },
+  xl: { jp: "text-4xl font-semibold", romaji: "text-base" },
+  lg: { jp: "text-2xl font-medium", romaji: "text-sm" },
   md: { jp: "text-lg", romaji: "text-xs" },
 };
 
-/** A Japanese line with ruby over kanji and, unless switched off, romaji underneath. */
+/**
+ * A Japanese line: ruby over the kanji, and under each word its romaji. Romaji
+ * sits per word so it can fall away word by word as the learner's kana become
+ * solid; `romaji: false` forces it off, for questions about reading kana.
+ */
 export function jpText(markup: Jp, size: keyof typeof SIZES = "md", options: { romaji?: boolean } = {}): HTMLElement {
   const line = h("span", { lang: "ja", class: `jp block ${SIZES[size].jp}` });
   parse(markup).forEach((word, i) => {
     if (i > 0) line.append(" ");
-    const span = h("span");
+    const japanese = h("span", { class: "block" });
     for (const segment of word) {
       if (segment.ruby) {
-        span.append(h("ruby", null, segment.text, h("rt", null, segment.ruby)));
+        japanese.append(h("ruby", null, segment.text, h("rt", null, segment.ruby)));
         continue;
       }
       segment.text.split("＿").forEach((part, j) => {
-        if (j > 0) span.append(h("span", { class: "blank", "aria-label": "空格" }));
-        if (part) span.append(part);
+        if (j > 0) japanese.append(h("span", { class: "blank", "aria-label": "空格" }));
+        if (part) japanese.append(part);
       });
     }
-    line.append(span);
+    const reading = word.map((segment) => segment.ruby ?? segment.text).join("");
+    const show =
+      options.romaji !== false && (settings.romaji !== "auto" || wordNeedsRomaji(reading, kanaMastered));
+    line.append(
+      h(
+        "span",
+        { class: "word" },
+        japanese,
+        // The romaji sits inside the lang="ja" line, so it is hidden from screen
+        // readers (they already read the Japanese) and styled back to the page font.
+        show &&
+          h(
+            "span",
+            { class: `romaji block text-muted ${SIZES[size].romaji}`, "aria-hidden": "true" },
+            wordToRomaji(reading),
+          ),
+      ),
+    );
   });
-  return h(
-    "span",
-    { class: "block" },
-    line,
-    options.romaji !== false && h("span", { class: `romaji block text-muted ${SIZES[size].romaji}` }, romaji(markup)),
-  );
+  return line;
 }
 
 // `generation` advances whenever new audio is requested, which is how a

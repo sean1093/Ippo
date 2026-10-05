@@ -1,8 +1,13 @@
 import { configureSpeech } from "./lib/speech";
 import { asRecord, defineStore } from "./lib/store";
 
+/** How much romaji to show: fade it out kana by kana, always, or never. */
+export type RomajiMode = "auto" | "always" | "off";
+
+const ROMAJI_MODES: readonly unknown[] = ["auto", "always", "off"];
+
 export interface Settings {
-  romaji: boolean;
+  romaji: RomajiMode;
   furigana: boolean;
   /** Play the Japanese as soon as a card or question appears. */
   autoplay: boolean;
@@ -16,7 +21,7 @@ export interface Settings {
 }
 
 export const DEFAULT_SETTINGS: Settings = {
-  romaji: true,
+  romaji: "auto",
   furigana: true,
   autoplay: true,
   rate: 0.85,
@@ -29,7 +34,10 @@ export const DEFAULT_SETTINGS: Settings = {
 export function parseSettings(data: unknown): Settings {
   const saved = asRecord(data) ?? {};
   const settings = { ...DEFAULT_SETTINGS };
-  for (const key of ["romaji", "furigana", "autoplay", "micNoticeSeen"] as const) {
+  // Romaji used to be a switch; "on" becomes the fading mode, which is what it meant to a learner.
+  if (ROMAJI_MODES.includes(saved.romaji)) settings.romaji = saved.romaji as RomajiMode;
+  else if (typeof saved.romaji === "boolean") settings.romaji = saved.romaji ? "auto" : "off";
+  for (const key of ["furigana", "autoplay", "micNoticeSeen"] as const) {
     const value = saved[key];
     if (typeof value === "boolean") settings[key] = value;
   }
@@ -75,7 +83,7 @@ export let progress: Progress = progressStore.load();
 /** Pushes the settings into the page (CSS switches) and the speech engine. */
 export function applySettings(): void {
   const root = document.documentElement.classList;
-  root.toggle("no-romaji", !settings.romaji);
+  root.toggle("no-romaji", settings.romaji === "off");
   root.toggle("no-furigana", !settings.furigana);
   configureSpeech({ voice: settings.voice, rate: settings.rate });
 }

@@ -1,8 +1,10 @@
+import { KATAKANA, NEW_KANA } from "../../content/kana-progression";
 import type { Lesson, Pattern, Word } from "../../content/types";
 import { plain } from "../../lib/jp";
 import { settings } from "../../state";
 import { h, LABEL } from "../dom";
 import { exampleRow, jpText, play, slowButton, speakButton } from "../japanese";
+import { kanaCell } from "../kana";
 import { dialogueStep } from "./dialogue";
 
 export interface StepView {
@@ -20,16 +22,50 @@ export interface StepView {
 export type Step = () => StepView;
 
 /**
- * The learning phase of a lesson, in order. A new kind of step — say, the
- * lesson's new kana — is one more function returning a StepView, listed here.
+ * The learning phase of a lesson, in order: its new kana first (when it has
+ * any), then words, patterns and the dialogue. A new kind of step is one more
+ * function returning a StepView, listed here.
  */
 export function lessonSteps(lesson: Lesson): Step[] {
   const { words, patterns, dialogue } = lesson;
+  const kana = NEW_KANA.get(lesson.id) ?? [];
   return [
+    ...(kana.length > 0 ? [() => kanaStep(kana)] : []),
     ...words.map((word, n) => () => wordStep(word, n, words.length)),
     ...patterns.map((pattern, n) => () => patternStep(pattern, n, patterns.length)),
     ...(dialogue ? [() => dialogueStep(dialogue)] : []),
   ];
+}
+
+/** The kana this lesson is the first to use — met here, then practised like any other card. */
+function kanaStep(kana: readonly string[]): StepView {
+  const group = (title: string, list: readonly string[]) =>
+    list.length > 0 &&
+    h(
+      "div",
+      { class: "mt-4 first:mt-0" },
+      h("p", { class: LABEL }, title),
+      h("div", { class: "mt-2 grid grid-cols-5 gap-2" }, list.map(kanaCell)),
+    );
+  return {
+    el: h(
+      "div",
+      { class: "pop" },
+      h("p", { class: LABEL }, "這課的新假名"),
+      h("p", { class: "mt-2 leading-relaxed" }, "這課會用到的新假名，點一下聽聽看"),
+      h(
+        "div",
+        { class: "mt-4 rounded-3xl bg-card p-4 shadow-sm ring-1 ring-hair" },
+        group("平假名", kana.filter((k) => !KATAKANA.test(k))),
+        group("片假名", kana.filter((k) => KATAKANA.test(k))),
+      ),
+      h(
+        "a",
+        { href: "#/kana/hira", class: "mt-4 block py-2 text-center text-sm font-semibold text-ai" },
+        "看完整的五十音表",
+      ),
+    ),
+  };
 }
 
 function wordStep(word: Word, n: number, count: number): StepView {
