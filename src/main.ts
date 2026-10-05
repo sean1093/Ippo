@@ -1,7 +1,8 @@
 import "./style.css";
 import { COURSE, LESSONS } from "./content/course";
-import { lessonCardIds } from "./learn/cards";
+import { lessonCardIds, setProfileCards } from "./learn/cards";
 import { introduce } from "./learn/memory";
+import { currentProfile } from "./learn/profile";
 import { onVoicesChanged } from "./lib/speech";
 import { applySettings, progress } from "./state";
 import { renderChallenge } from "./ui/challenge";
@@ -11,7 +12,9 @@ import { renderKana, renderKanaQuiz } from "./ui/kana";
 import { renderKanji, renderKanjiQuiz } from "./ui/kanji";
 import { type Tab, tabLayout } from "./ui/layout";
 import { renderLesson } from "./ui/lesson/player";
+import { renderIntroDrill, renderMe } from "./ui/me";
 import { renderPairs, renderPairsQuiz } from "./ui/pairs";
+import { renderPhrasebook } from "./ui/phrasebook";
 import { renderPractice } from "./ui/practice";
 import { renderReview } from "./ui/review";
 import { refreshVoices, renderSettings } from "./ui/settings";
@@ -53,7 +56,10 @@ const PAGES: Record<string, Page> = {
   "kanji-quiz": { render: (root) => renderKanjiQuiz(root) },
   pairs: { tab: "practice", render: (main) => renderPairs(main) },
   "pairs-quiz": { render: (root, [category]) => renderPairsQuiz(root, category) },
-  settings: { tab: "settings", render: (main) => renderSettings(main) },
+  me: { tab: "me", render: (main, [view]) => renderMe(main, view === "edit") },
+  intro: { render: (root) => renderIntroDrill(root) },
+  phrasebook: { tab: "me", render: (main) => renderPhrasebook(main) },
+  settings: { tab: "me", render: (main) => renderSettings(main) },
 };
 
 const root = document.getElementById("app") as HTMLElement;
@@ -68,6 +74,8 @@ function route(): void {
 }
 
 applySettings();
+// The learner's own lines are cards too, so review can ask for them.
+setProfileCards(currentProfile());
 // Lessons finished before daily review existed join it as of the day they were finished.
 for (const lesson of LESSONS) {
   const record = progress[lesson.id];
@@ -79,3 +87,9 @@ for (const lesson of LESSONS) {
 onVoicesChanged(refreshVoices);
 window.addEventListener("hashchange", route);
 route();
+
+// Offline use: only the built site has a service worker to register, and the
+// URL stays relative so it also works from a GitHub Pages subpath.
+if (import.meta.env.PROD && "serviceWorker" in navigator) {
+  window.addEventListener("load", () => void navigator.serviceWorker.register("./sw.js"));
+}

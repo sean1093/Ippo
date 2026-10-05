@@ -6,6 +6,7 @@ import { wordToRomaji } from "../lib/romaji";
 import { speak, type SpeakOptions, stopSpeaking } from "../lib/speech";
 import { settings } from "../state";
 import { h, icon } from "./dom";
+import { starButton } from "./star";
 
 const SLOW_RATE = 0.6;
 
@@ -145,8 +146,9 @@ export function slowButton(markup: Jp): HTMLButtonElement {
 export function exampleRow(markup: Jp, zh: string): HTMLElement {
   return h(
     "div",
-    { class: "flex items-start gap-3 px-4 py-3" },
+    { class: "flex items-start gap-2 py-3 pl-4 pr-1" },
     speakButton(markup, "sm"),
-    h("div", { class: "min-w-0 flex-1" }, jpText(markup), h("p", { class: "mt-0.5 text-sm text-ink/75" }, zh)),
+    h("div", { class: "min-w-0 flex-1 pt-0.5" }, jpText(markup), h("p", { class: "mt-0.5 text-sm text-ink/75" }, zh)),
+    starButton(markup),
   );
 }

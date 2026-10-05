@@ -1,7 +1,7 @@
 import { currentDue } from "../learn/memory";
 import { h, icon } from "./dom";
 
-export type Tab = "learn" | "practice" | "kana" | "settings";
+export type Tab = "learn" | "practice" | "kana" | "me";
 
 interface TabEntry {
   id: Tab;
@@ -22,7 +22,7 @@ const TABS: TabEntry[] = [
     label: "五十音",
     glyph: () => h("span", { lang: "ja", class: "flex h-6 w-6 items-center justify-center text-xl font-bold leading-none" }, "あ"),
   },
-  { id: "settings", href: "#/settings", label: "設定", glyph: () => icon("sliders", "h-6 w-6") },
+  { id: "me", href: "#/me", label: "我的", glyph: () => icon("user", "h-6 w-6") },
 ];
 
 /** Page with the bottom tab bar; returns the element to render the page into. */

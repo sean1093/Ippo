@@ -1,6 +1,7 @@
 import type { Dialogue } from "../../../content/types";
 import { h } from "../../dom";
 import { jpText, speakButton } from "../../japanese";
+import { starButton } from "../../star";
 import { bubbleRow, type DialogueMode, playAllButton, type Row } from "./shared";
 
 /** 閱讀: the whole conversation, with audio per line and a translation toggle. */
@@ -13,7 +14,13 @@ export function readMode(dialogue: Dialogue): DialogueMode {
     const row = bubbleRow(
       dialogue,
       line,
-      h("div", { class: "flex items-start gap-2" }, h("div", { class: "min-w-0 flex-1" }, jpText(line.jp)), button),
+      h(
+        "div",
+        { class: "flex items-start gap-1" },
+        h("div", { class: "min-w-0 flex-1" }, jpText(line.jp)),
+        starButton(line.jp),
+        button,
+      ),
       zh,
     );
     return { ...row, button };
