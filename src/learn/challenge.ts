@@ -1,7 +1,7 @@
 import type { Unit } from "../content/types";
 import { asRecord, defineStore } from "../lib/store";
 import { type Rng, shuffle } from "../quiz/drill";
-import { exerciseQuestion, type Question } from "../quiz/questions";
+import { type Ask, exerciseQuestion, type Question } from "../quiz/questions";
 import { type Card, lessonCards } from "./cards";
 import { meaningQuestion } from "./review";
 import type { Memory } from "./scheduler";
@@ -30,6 +30,7 @@ export function challengeQuestions(
   unit: Unit,
   memoryOf: (id: string) => Memory | undefined,
   rng: Rng = Math.random,
+  ask: Ask = {},
 ): Question[] {
   const seen = new Map<string, Card>();
   for (const card of unit.lessons.flatMap(lessonCards)) if (!seen.has(card.id)) seen.set(card.id, card);
@@ -81,10 +82,10 @@ export function challengeQuestions(
   return roundRobin(
     shuffle(
       [
-        say.map((card) => meaningQuestion(card, "say", cards, rng)),
-        listen.map((card) => meaningQuestion(card, "listen", cards, rng)),
-        word.map((card) => meaningQuestion(card, "recognize", cards, rng)),
-        exercises.map((ex) => exerciseQuestion(ex, rng)),
+        say.map((card) => meaningQuestion(card, "say", cards, rng, ask)),
+        listen.map((card) => meaningQuestion(card, "listen", cards, rng, ask)),
+        word.map((card) => meaningQuestion(card, "recognize", cards, rng, ask)),
+        exercises.flatMap((ex) => exerciseQuestion(ex, rng, ask) ?? []),
       ],
       rng,
     ),

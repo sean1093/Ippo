@@ -36,6 +36,10 @@ export interface Settings {
   welcomed: boolean;
   /** The learner already reads kana, so the pronunciation unit is skipped. */
   knowsKana: boolean;
+  /** Listening questions are paused until this time (epoch ms); 0 means they are on. */
+  listenOffUntil: number;
+  /** The learner has swiped between learning cards once, so the hint has done its job. */
+  swipeHintSeen: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -50,6 +54,8 @@ export const DEFAULT_SETTINGS: Settings = {
   textSize: "standard",
   welcomed: false,
   knowsKana: false,
+  listenOffUntil: 0,
+  swipeHintSeen: false,
 };
 
 /** Saved settings over the defaults; malformed fields fall back individually. */
@@ -61,14 +67,15 @@ export function parseSettings(data: unknown): Settings {
   else if (typeof saved.romaji === "boolean") settings.romaji = saved.romaji ? "auto" : "off";
   if (THEMES.includes(saved.theme)) settings.theme = saved.theme as Theme;
   if (TEXT_SIZES.includes(saved.textSize)) settings.textSize = saved.textSize as TextSize;
-  for (const key of ["furigana", "autoplay", "micNoticeSeen", "welcomed", "knowsKana"] as const) {
+  for (const key of ["furigana", "autoplay", "micNoticeSeen", "welcomed", "knowsKana", "swipeHintSeen"] as const) {
     const value = saved[key];
     if (typeof value === "boolean") settings[key] = value;
   }
   if (typeof saved.rate === "number" && saved.rate >= 0.5 && saved.rate <= 1.5) settings.rate = saved.rate;
   if (typeof saved.voice === "string") settings.voice = saved.voice;
-  if (typeof saved.speakOffUntil === "number" && Number.isFinite(saved.speakOffUntil) && saved.speakOffUntil > 0) {
-    settings.speakOffUntil = saved.speakOffUntil;
+  for (const key of ["speakOffUntil", "listenOffUntil"] as const) {
+    const value = saved[key];
+    if (typeof value === "number" && Number.isFinite(value) && value > 0) settings[key] = value;
   }
   return settings;
 }

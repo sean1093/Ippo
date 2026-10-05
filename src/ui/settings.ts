@@ -1,5 +1,6 @@
 import { resetChallenges } from "../learn/challenge";
 import { localDay, resetMemory } from "../learn/memory";
+import { clearResume } from "../learn/resume";
 import { backupSummary, createBackup, readBackup, restoreBackup } from "../lib/backup";
 import { japaneseVoices, voiceStatus } from "../lib/speech";
 import {
@@ -323,6 +324,7 @@ function resetRow(): HTMLElement {
     resetProgress();
     resetMemory();
     resetChallenges();
+    clearResume();
     status.textContent = "學習紀錄已清除。";
     button.disabled = true;
   });

@@ -1,10 +1,10 @@
 import { KATAKANA, NEW_KANA } from "../../content/kana-progression";
 import type { Lesson, Pattern, Word } from "../../content/types";
 import { plain } from "../../lib/jp";
-import { settings } from "../../state";
 import { h, LABEL } from "../dom";
 import { exampleRow, jpText, play, slowButton, speakButton } from "../japanese";
 import { kanaCell } from "../kana";
+import { shouldAutoplay } from "../pause";
 import { starButton } from "../star";
 import { dialogueStep } from "./dialogue";
 
@@ -100,7 +100,7 @@ function wordStep(word: Word, n: number, count: number): StepView {
         ),
     ),
     onShow: () => {
-      if (settings.autoplay) void play(word.jp, speaker);
+      if (shouldAutoplay()) void play(word.jp, speaker);
     },
   };
 }

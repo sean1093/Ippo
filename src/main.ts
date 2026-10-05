@@ -6,6 +6,7 @@ import { currentProfile } from "./learn/profile";
 import { onVoicesChanged } from "./lib/speech";
 import { applySettings, progress, settings } from "./state";
 import { renderChallenge } from "./ui/challenge";
+import { focusHeading } from "./ui/dom";
 import { renderHome } from "./ui/home";
 import { hush } from "./ui/japanese";
 import { renderKana, renderKanaQuiz } from "./ui/kana";
@@ -65,6 +66,8 @@ const PAGES: Record<string, Page> = {
 };
 
 const root = document.getElementById("app") as HTMLElement;
+/** The first render is the page the learner opened: moving focus there would be noise. */
+let routed = false;
 
 function route(): void {
   hush();
@@ -73,6 +76,8 @@ function route(): void {
   // hasOwn: the name comes from the URL, and "constructor" must not reach Object.prototype.
   const page = Object.hasOwn(PAGES, name) ? PAGES[name]! : PAGES[""]!;
   page.render(page.tab ? tabLayout(root, page.tab) : root, args);
+  if (routed) focusHeading(root);
+  routed = true;
 }
 
 applySettings();

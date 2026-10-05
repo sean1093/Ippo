@@ -1,8 +1,9 @@
 import { answer, currentDue, currentWeakest, memoryOf, studied } from "../learn/memory";
 import { reviewQuestions } from "../learn/review";
-import { BUTTON, fill, h, icon } from "./dom";
+import { BUTTON, fill, focusHeading, h, icon } from "./dom";
 import { runDrill } from "./drill";
-import { focusLayout, resultView } from "./layout";
+import { focusLayout, resultView, skippedView } from "./layout";
+import { listeningOff } from "./pause";
 
 /** Cards per session: about five minutes, short enough to finish on a bus ride. */
 export const SESSION_SIZE = 20;
@@ -16,7 +17,7 @@ const EXTRA_SIZE = 10;
 export function renderReview(root: HTMLElement): void {
   const due = currentDue();
   const ids = due.length > 0 ? due.slice(0, SESSION_SIZE) : currentWeakest(EXTRA_SIZE);
-  const questions = reviewQuestions(ids, memoryOf);
+  const questions = reviewQuestions(ids, memoryOf, Math.random, { listening: !listeningOff() });
   if (questions.length === 0) {
     location.replace("#/practice");
     return;
@@ -30,16 +31,18 @@ export function renderReview(root: HTMLElement): void {
   runDrill(questions, {
     main,
     footer,
-    onProgress: (cleared) => setProgress(cleared / questions.length),
+    onProgress: (cleared, left) => setProgress(cleared / Math.max(1, left)),
     onFirstAnswer: (question, outcome) => {
       if (question.card) answer(question.card, outcome.grade, question.kind === "recall" ? "say" : "pick");
     },
-    onFinish: (score) => {
+    onFinish: (score, answered) => {
       finished = true;
-      studied();
+      if (answered > 0) studied();
       window.scrollTo(0, 0);
       const left = currentDue().length;
-      main.replaceChildren(resultView("複習完成！", `複習了 ${questions.length} 張卡片`, score));
+      main.replaceChildren(
+        answered > 0 ? resultView("複習完成！", `複習了 ${answered} 張卡片`, score) : skippedView("每日複習"),
+      );
       fill(
         footer,
         left > 0
@@ -47,6 +50,7 @@ export function renderReview(root: HTMLElement): void {
           : h("a", { href: "#/practice", class: BUTTON.primary }, "回到練習"),
         left > 0 && h("a", { href: "#/practice", class: `${BUTTON.quiet} mt-1` }, "先休息一下"),
       );
+      focusHeading(main);
     },
   });
 

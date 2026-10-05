@@ -54,6 +54,15 @@ export interface Recall {
 
 export type Question = Mc | Order | Recall;
 
+/**
+ * What the learner can be asked right now. `listening: false` is 「現在不方便聽」:
+ * no question may depend on hearing anything, so builders take this instead of
+ * reading the settings themselves.
+ */
+export interface Ask {
+  listening?: boolean;
+}
+
 /** Generated vocabulary questions per lesson; the rest are hand-written exercises. */
 const VOCAB_QUESTIONS = 6;
 /** "Say it" questions per lesson, taken from the learner's own lines in the dialogue. */
@@ -81,13 +90,21 @@ export function decoys<T extends { jp: Jp; zh: string }>(item: T, candidates: re
   return out;
 }
 
-/** One authored exercise as a question; `rng` shuffles the options and the word bank. */
-export function exerciseQuestion(ex: Exercise, rng: Rng): Question {
+/**
+ * One authored exercise as a question; `rng` shuffles the options and the word
+ * bank. Returns null when the exercise cannot be asked at all: a listening
+ * exercise whose stimulus already contains the answer is nothing but its audio.
+ */
+export function exerciseQuestion(ex: Exercise, rng: Rng, ask: Ask = {}): Question | null {
   switch (ex.kind) {
     case "choice": {
       const say = ex.jp?.includes(BLANK) ? ex.jp.replace(BLANK, ex.answer) : ex.answer;
+      const silent = ex.listen === true && ask.listening === false;
+      // Most listening exercises play the answer itself — 「おばさん or おばあさん?」
+      // — so showing that line as text hands it over. Those are dropped.
+      if (silent && (ex.jp === undefined || plain(ex.jp).includes(plain(ex.answer)))) return null;
       return mc(
-        { prompt: ex.prompt, jp: ex.jp, mode: ex.listen ? "listen" : "show", explain: ex.explain, say },
+        { prompt: ex.prompt, jp: ex.jp, mode: ex.listen && !silent ? "listen" : "show", explain: ex.explain, say },
         { jp: ex.answer },
         ex.wrong.map((jp) => ({ jp })),
         rng,
@@ -142,8 +159,12 @@ export function lessonQuestions(
   earlier: readonly { jp: Jp; zh: string }[],
   rng: Rng = Math.random,
   mixIns: readonly Question[] = [],
+  ask: Ask = {},
 ): Question[] {
-  const kinds = shuffle(["meaning", "listen", "reverse"] as const, rng);
+  // With listening off the rotation is one kind shorter; everything else is unchanged.
+  const listenKinds = ["meaning", "listen", "reverse"] as const;
+  const readKinds = ["meaning", "reverse"] as const;
+  const kinds = shuffle(ask.listening === false ? readKinds : listenKinds, rng);
   const vocab = shuffle(lesson.words, rng)
     .slice(0, VOCAB_QUESTIONS)
     .map((word, i): Mc => {
@@ -178,7 +199,11 @@ export function lessonQuestions(
   const recall = shuffle(fit.length >= RECALL_QUESTIONS ? fit : lines, rng)
     .slice(0, RECALL_QUESTIONS)
     .map((line): Recall => ({ kind: "recall", zh: line.zh, jp: line.jp, card: line.jp }));
-  return [...spread(vocab, mixIns), ...lesson.exercises.map((ex) => exerciseQuestion(ex, rng)), ...recall];
+  return [
+    ...spread(vocab, mixIns),
+    ...lesson.exercises.flatMap((ex) => exerciseQuestion(ex, rng, ask) ?? []),
+    ...recall,
+  ];
 }
 
 /**
@@ -186,7 +211,7 @@ export function lessonQuestions(
  * `pool`. Each one carries that kana's card id, and every cell of the chart —
  * both scripts, 拗音 included — is a card, so all chart practice is tracked.
  */
-export function kanaQuestions(pool: readonly string[], count: number, rng: Rng = Math.random): Question[] {
+export function kanaQuestions(pool: readonly string[], count: number, rng: Rng = Math.random, ask: Ask = {}): Question[] {
   return shuffle(pool, rng)
     .slice(0, count)
     .map((kana, i) => {
@@ -201,7 +226,7 @@ export function kanaQuestions(pool: readonly string[], count: number, rng: Rng =
         others.push(other);
         if (others.length === 3) break;
       }
-      return i % 2 === 0
+      return i % 2 === 0 || ask.listening === false
         ? mc(
             { prompt: "這個假名怎麼唸？", jp: kana, mode: "read", say: kana, card: kanaCardId(kana) },
             { text: sound },

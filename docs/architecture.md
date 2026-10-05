@@ -39,6 +39,16 @@ src/
 - `onShow` 會在使用者點進來時執行，可以在這裡播放聲音。
 - `onLeave` 會在離開這個步驟時執行（換下一步、回上一步、關掉或用瀏覽器返回），用來停掉聲音、放掉麥克風、`URL.revokeObjectURL()`。只要步驟握著資源就一定要實作它。
 
+學習步驟由 `src/ui/lesson/player.ts` 放進一個 `touch-pan-y` 的容器裡，左右滑動就是上一步／繼續（`src/ui/swipe.ts` 的 `onSwipe`：位移 64px 以上、橫向是縱向的兩倍以上、800 毫秒以內，而且不是從按鈕、連結、輸入框、`[data-no-swipe]` 或螢幕邊緣 24px 內開始）。會自己橫向捲動或拖曳的區塊（句子重組的字卡、會話的模式切換）要加上 `data-no-swipe`。換頁的滑入動畫是 `.slide-forward`／`.slide-back`，`prefers-reduced-motion` 下和其他動畫一起關掉。
+
+### 繼續上次的進度
+`src/learn/resume.ts` 用 `ippo.resume` 記住**一課**的位置 `{ lesson, step, at }`：
+
+- `saveResume()`：播放器每進一個學習步驟就存一次，進入測驗時存 `steps.length`；`clearResume()` 在完成那一課時清掉，設定頁的「清除學習紀錄」也會清。
+- `resumePoint(lessonId, stepCount, now)` 回傳要接續的步驟或 null：超過 30 天就不再提（隔太久不如重上），步驟數會夾到那一課現在的步驟數（改版後內容會變），第 0 步等於從頭開始，不算進度。
+- 課程簡介用它顯示「從第 k 步繼續」／「繼續測驗」加上「從頭開始」；首頁的主要按鈕變成「繼續第 N 課（第 k / m 步）」。
+- 因為位置留著了，離開學習步驟不再問；只有測驗會問「要離開測驗嗎？下次會從測驗開始。」
+
 ### 情境會話的四種模式
 `src/ui/lesson/dialogue.ts` 只放最上面的模式切換；每一種模式是 `src/ui/lesson/dialogue/` 底下的一個模組，回傳 `DialogueMode`（`el` ＋ 選用的 `onLeave`）：
 
@@ -107,7 +117,24 @@ src/
 - `src/lib/recorder.ts`：`MediaRecorder` 包裝（Safari 用 audio/mp4、Chrome 用 audio/webm），八秒自動停，結束一定放掉麥克風。
 - `src/lib/match.ts`：`judgeSpeech()` 把辨識結果正規化（NFKC 統一全形與半形片假名、片假名轉平假名、去標點與空白）後，跟三種寫法比對——漢字原文、假名讀音，以及電話號碼這種連續唸出的數字轉成阿拉伯數字——用編輯距離給 pass／close／miss。
 
-**隱私**：辨識的聲音會送到瀏覽器廠商（Chrome → Google、Safari → Apple），錄音則完全留在裝置上、離開畫面就 `revokeObjectURL()` 丟掉。第一次用麥克風前會顯示這段說明，看過了記在設定 `micNoticeSeen`。在不方便出聲的場合，`speakOffUntil`（epoch 毫秒）讓學習者把說話練習關一小時，期間所有需要開口的地方改成自評。
+**隱私**：辨識的聲音會送到瀏覽器廠商（Chrome → Google、Safari → Apple），錄音則完全留在裝置上、離開畫面就 `revokeObjectURL()` 丟掉。第一次用麥克風前會顯示這段說明，看過了記在設定 `micNoticeSeen`（`src/ui/lesson/dialogue/mic.ts`）。
+
+## 不方便說、不方便聽
+
+兩種暫停都在 `src/ui/pause.ts`，各自對應一個設定：`speakOffUntil` 與 `listenOffUntil`（epoch 毫秒，0 表示開著）。`pauseRow(kind, onChange)` 畫出「現在不方便說／現在不方便聽」與「已關閉…，HH:MM 之後恢復」加「取消」，按下去之後呼叫 `onChange` 讓畫面重畫。
+
+- **不方便說**：`speakingOff()`。跟讀收起錄音、角色扮演改成自評，一樣能走完整段對話。
+- **不方便聽**：`listeningOff()`，而且是一道出題的閘門：
+  - `shouldAutoplay()`（＝ `settings.autoplay && !listeningOff()`）是唯一的自動播放判斷，畫面不要自己讀 `settings.autoplay`；手動點喇叭永遠可以播。
+  - 出題函式是純函式，不讀設定：`lessonQuestions`、`kanaQuestions`、`reviewQuestions`、`challengeQuestions`、`kanjiQuestion`、`exerciseQuestion` 都收一個 `Ask`（`{ listening }`），由畫面傳 `!listeningOff()`。關掉時課程測驗改出「看意思／看中文選日文」，五十音考「看假名選拼音」，複習與單元挑戰把「聽懂」階段降成「認得」，假名卡整個不排進這次複習（它們還是到期的）；手寫的聽力題只有在把文字顯示出來不會洩漏答案時才留著，否則整題拿掉。
+  - 測驗做到一半才按：每個聽力題下面都有這一行，按下去用 `Drill.skip(predicate)` 把當下這題和剩下的聽力題一起移出測驗——不計分、不進複習，進度的分母也跟著變小。
+  - 一題都沒作答的測驗（全部跳過）不算完成：`runDrill` 的 `onFinish(score, answered)` 會告訴畫面還剩幾題，`answered === 0` 時不寫課程完成、不記學習日，改顯示 `skippedView()`。
+
+## 焦點與朗讀
+
+- `src/main.ts` 的 `route()` 在換頁後把焦點移到頁面的 `h1`（`src/ui/dom.ts` 的 `focusHeading()`，`tabindex="-1"` ＋ `preventScroll`），第一次載入不動焦點。
+- 全螢幕流程（上課步驟、測驗題目、結算畫面）換畫面時也呼叫 `focusHeading()`，否則底部按鈕被換掉時焦點會掉回 `<body>`。沒有標題的畫面（例如單字卡）就讓 `<main>` 收下焦點。
+- `announce(text)` 是全站唯一的 `aria-live="polite"` 隱藏區塊，掛在 `<body>` 上。測驗回饋用它唸「答對了」或「答錯了，正確答案是…」（去掉拼音與振假名的純文字）；回饋區塊本身因此沒有 `role="status"`，不會被唸兩次。
 
 ## 卡片與每日複習
 

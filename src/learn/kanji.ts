@@ -1,6 +1,6 @@
 import { FALSE_FRIENDS } from "../content/kanji";
 import { type Rng, shuffle } from "../quiz/drill";
-import { mc, type Question } from "../quiz/questions";
+import { type Ask, mc, type Question } from "../quiz/questions";
 import type { Card } from "./cards";
 import type { Stage } from "./review";
 
@@ -10,9 +10,9 @@ const WRONG = 3;
 /**
  * How a false friend is asked. The Chinese meaning of the same characters is
  * always on the list, so answering means ruling the trap out — recognising the
- * word is not enough.
+ * word is not enough. With listening off the heard stage is asked by sight.
  */
-export function kanjiQuestion(card: Card, stage: Stage, rng: Rng): Question {
+export function kanjiQuestion(card: Card, stage: Stage, rng: Rng, ask: Ask = {}): Question {
   if (stage === "say") return { kind: "recall", zh: card.zh, jp: card.jp, card: card.id };
   const trap = FALSE_FRIENDS.find((friend) => friend.jp === card.id)?.trap;
   const wrong: string[] = [];
@@ -26,7 +26,7 @@ export function kanjiQuestion(card: Card, stage: Stage, rng: Rng): Question {
     if (wrong.length === WRONG) break;
   }
   return mc(
-    stage === "listen"
+    stage === "listen" && ask.listening !== false
       ? { prompt: "聽聽看，這個詞是什麼意思？", jp: card.jp, mode: "listen", say: card.jp, card: card.id }
       : { prompt: "這個詞在日文是什麼意思？", jp: card.jp, mode: "show", say: card.jp, card: card.id },
     { text: card.zh },

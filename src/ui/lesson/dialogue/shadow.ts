@@ -2,7 +2,8 @@ import type { Dialogue } from "../../../content/types";
 import { canRecord, type Recording, startRecording } from "../../../lib/recorder";
 import { fill, h, icon } from "../../dom";
 import { hush, jpText, play } from "../../japanese";
-import { speakingOff, speakOffRow, withMicNotice } from "./mic";
+import { pauseRow, speakingOff } from "../../pause";
+import { withMicNotice } from "./mic";
 import { bubbleRow, type DialogueMode, pill, type Row } from "./shared";
 
 const RECORD = "inline-flex h-9 items-center gap-1.5 rounded-full px-3 text-sm font-semibold transition active:scale-95";
@@ -139,7 +140,7 @@ export function shadowMode(dialogue: Dialogue): DialogueMode {
       line.playback.classList.toggle("hidden", off || line.url === null);
     }
   }
-  const speakOff = speakOffRow(render);
+  const speakOff = pauseRow("speak", render);
   render();
 
   return {

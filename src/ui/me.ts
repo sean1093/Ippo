@@ -4,7 +4,7 @@ import { answer, introduce, studied } from "../learn/memory";
 import { starredIds } from "../learn/phrasebook";
 import { CITIES, currentProfile, JOBS, kanaName, type Profile, saveProfile, selfIntro, SURNAMES } from "../learn/profile";
 import type { Question } from "../quiz/questions";
-import { BUTTON, fill, h, icon, LABEL } from "./dom";
+import { BUTTON, fill, focusHeading, h, icon, LABEL } from "./dom";
 import { runDrill } from "./drill";
 import { hush, jpText, playSequence, speakButton } from "./japanese";
 import { focusLayout, resultView } from "./layout";
@@ -279,6 +279,7 @@ export function renderIntroDrill(root: HTMLElement): void {
         h("a", { href: "#/me", class: BUTTON.primary }, "回到我的"),
         h("a", { href: "#/intro", class: `${BUTTON.quiet} mt-1`, onclick: again }, "再練一次"),
       );
+      focusHeading(main);
     },
   });
 

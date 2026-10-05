@@ -4,13 +4,16 @@ import { NEW_KANA } from "../../content/kana-progression";
 import type { Lesson } from "../../content/types";
 import { lessonCardIds } from "../../learn/cards";
 import { answer, currentMixIns, introduce, memoryOf, studied } from "../../learn/memory";
+import { clearResume, resumePoint, saveResume } from "../../learn/resume";
 import { reviewQuestions } from "../../learn/review";
 import { lessonQuestions, type Question } from "../../quiz/questions";
-import { completeLesson, progress } from "../../state";
-import { BUTTON, fill, h, icon, LABEL } from "../dom";
+import { completeLesson, progress, settings, updateSettings } from "../../state";
+import { BUTTON, fill, focusHeading, h, icon, LABEL } from "../dom";
 import { runDrill } from "../drill";
 import { hush } from "../japanese";
-import { focusLayout, resultView, stars } from "../layout";
+import { focusLayout, resultView, skippedView, stars } from "../layout";
+import { listeningOff } from "../pause";
+import { onSwipe } from "../swipe";
 import { lessonSteps } from "./steps";
 
 /** Cards from earlier lessons mixed into one lesson quiz. */
@@ -30,8 +33,16 @@ export function renderLesson(root: HTMLElement, lesson: Lesson): void {
   // Old material comes back inside the quiz, interleaved with the new words, so
   // the lesson is never a block of only-just-taught answers. Built per run: a
   // retake must not re-ask review questions the first run has already answered.
-  const buildQuestions = (): Question[] =>
-    lessonQuestions(lesson, earlier, Math.random, reviewQuestions(currentMixIns(lesson, MIX_INS), memoryOf));
+  const buildQuestions = (): Question[] => {
+    const ask = { listening: !listeningOff() };
+    return lessonQuestions(
+      lesson,
+      earlier,
+      Math.random,
+      reviewQuestions(currentMixIns(lesson, MIX_INS), memoryOf, Math.random, ask),
+      ask,
+    );
+  };
   let questions = buildQuestions();
   let total = steps.length + questions.length;
   let phase: "intro" | "learn" | "quiz" | "done" = "intro";
@@ -44,7 +55,8 @@ export function renderLesson(root: HTMLElement, lesson: Lesson): void {
   }
 
   const { main, footer, setProgress } = focusLayout(root, () => {
-    if ((phase === "learn" || phase === "quiz") && !window.confirm("要離開這一課嗎？這次的進度不會保存。")) return;
+    // Learning steps are kept: coming back lands on the same card. The quiz is not.
+    if (phase === "quiz" && !window.confirm("要離開測驗嗎？下次會從測驗開始。")) return;
     leave();
     location.hash = "#/";
   });
@@ -89,13 +101,24 @@ export function renderLesson(root: HTMLElement, lesson: Lesson): void {
         h("p", { class: "mt-4 text-sm leading-relaxed text-muted" }, "每句日文都能點喇叭聽發音。跟著唸出聲音，記得最快！"),
       ),
     );
+    const resume = resumePoint(lesson.id, steps.length);
     footer.replaceChildren(
-      h("button", { type: "button", class: BUTTON.primary, onclick: () => step(0) }, "開始學習"),
-      h("button", { type: "button", class: `${BUTTON.quiet} mt-1`, onclick: quiz }, "直接做測驗"),
+      resume === null
+        ? h("button", { type: "button", class: BUTTON.primary, onclick: () => step(0) }, "開始學習")
+        : h(
+            "button",
+            { type: "button", class: BUTTON.primary, onclick: () => (resume === steps.length ? quiz() : step(resume)) },
+            resume === steps.length ? "繼續測驗" : `從第 ${resume + 1} 步繼續`,
+            icon("next"),
+          ),
+      resume === null
+        ? h("button", { type: "button", class: `${BUTTON.quiet} mt-1`, onclick: quiz }, "直接做測驗")
+        : h("button", { type: "button", class: `${BUTTON.quiet} mt-1`, onclick: () => step(0) }, "從頭開始"),
     );
+    focusHeading(main);
   }
 
-  function step(i: number): void {
+  function step(i: number, enter = ""): void {
     leave();
     const build = steps[i];
     if (!build) {
@@ -106,9 +129,23 @@ export function renderLesson(root: HTMLElement, lesson: Lesson): void {
     hush();
     window.scrollTo(0, 0);
     setProgress(i / total);
+    saveResume(lesson.id, i);
     const view = build();
     leaveStep = view.onLeave;
-    main.replaceChildren(view.el);
+    // pan-y keeps the page scrollable while the horizontal gesture is ours.
+    const page = h(
+      "div",
+      { class: `touch-pan-y ${enter}` },
+      view.el,
+      !settings.swipeHintSeen && h("p", { class: "mt-6 text-center text-xs text-muted" }, "左右滑動也可以換頁"),
+    );
+    onSwipe(page, (direction) => {
+      if (!settings.swipeHintSeen) updateSettings({ swipeHintSeen: true });
+      if (direction === 1) step(i + 1, "slide-forward");
+      else if (i === 0) intro();
+      else step(i - 1, "slide-back");
+    });
+    main.replaceChildren(page);
     footer.replaceChildren(
       h(
         "div",
@@ -131,6 +168,7 @@ export function renderLesson(root: HTMLElement, lesson: Lesson): void {
         ),
       ),
     );
+    focusHeading(main);
     view.onShow?.();
   }
 
@@ -140,10 +178,11 @@ export function renderLesson(root: HTMLElement, lesson: Lesson): void {
     hush();
     total = steps.length + questions.length;
     setProgress(steps.length / total);
+    saveResume(lesson.id, steps.length);
     runDrill(questions, {
       main,
       footer,
-      onProgress: (cleared) => setProgress((steps.length + cleared) / total),
+      onProgress: (cleared, left) => setProgress((steps.length + cleared) / (steps.length + left)),
       onFirstAnswer: (question, outcome) => {
         if (question.card) answer(question.card, outcome.grade, question.kind === "recall" ? "say" : "pick");
       },
@@ -151,14 +190,20 @@ export function renderLesson(root: HTMLElement, lesson: Lesson): void {
     });
   }
 
-  function finish(score: number): void {
+  function finish(score: number, answered: number): void {
     phase = "done";
-    completeLesson(lesson.id, score);
-    introduce(lessonCardIds(lesson));
-    studied();
+    clearResume(lesson.id);
+    // A quiz nobody answered — every question skipped — is not a finished lesson.
+    if (answered > 0) {
+      completeLesson(lesson.id, score);
+      introduce(lessonCardIds(lesson));
+      studied();
+    }
     setProgress(1);
     window.scrollTo(0, 0);
-    main.replaceChildren(resultView(`完成第 ${position + 1} 課！`, lesson.title, score));
+    main.replaceChildren(
+      answered > 0 ? resultView(`完成第 ${position + 1} 課！`, lesson.title, score) : skippedView(lesson.title),
+    );
     fill(
       footer,
       next
@@ -179,6 +224,7 @@ export function renderLesson(root: HTMLElement, lesson: Lesson): void {
       ),
       next && h("a", { href: "#/", class: `${BUTTON.quiet} mt-1` }, "回到課程"),
     );
+    focusHeading(main);
   }
 
   intro();
