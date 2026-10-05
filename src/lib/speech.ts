@@ -46,6 +46,14 @@ export function japaneseVoices(): SpeechSynthesisVoice[] {
     .sort((a, b) => rank(a) - rank(b));
 }
 
+/**
+ * Japanese voices worth hearing a word in, best first. Listening practice
+ * plays the same contrast in several of them; the novelty voices mangle it.
+ */
+export function varietyVoices(): SpeechSynthesisVoice[] {
+  return japaneseVoices().filter((voice) => !NOVELTY.test(`${voice.name} ${voice.voiceURI}`));
+}
+
 /** The learner's chosen voice, else the best-sounding Japanese one. */
 function currentVoice(): SpeechSynthesisVoice | undefined {
   const voices = japaneseVoices();
@@ -66,17 +74,28 @@ export function onVoicesChanged(listener: () => void): void {
   synth?.addEventListener("voiceschanged", listener);
 }
 
+/** How one utterance differs from the learner's usual settings. */
+export interface SpeakOptions {
+  rate?: number;
+  /** A voice other than the learner's, for hearing the same word in several voices. */
+  voice?: SpeechSynthesisVoice;
+  /** 1 is the voice's own pitch. */
+  pitch?: number;
+}
+
 /** Speaks `markup`, interrupting anything already playing. Resolves when done or interrupted. */
-export function speak(markup: Jp, rate = defaultRate): Promise<void> {
+export function speak(markup: Jp, options: SpeakOptions = {}): Promise<void> {
   stopSpeaking();
   const text = plain(markup);
   if (!synth || !text) return Promise.resolve();
+  const rate = options.rate ?? defaultRate;
   const { promise, resolve } = Promise.withResolvers<void>();
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = "ja-JP";
-  const voice = currentVoice();
+  const voice = options.voice ?? currentVoice();
   if (voice) utterance.voice = voice;
   utterance.rate = rate;
+  if (options.pitch !== undefined) utterance.pitch = options.pitch;
   const finish = () => {
     window.clearTimeout(timer);
     if (active?.utterance === utterance) active = null;

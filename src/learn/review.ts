@@ -2,6 +2,7 @@ import { KATAKANA } from "../content/kana-progression";
 import { type Rng, shuffle } from "../quiz/drill";
 import { decoys, mc, type Question } from "../quiz/questions";
 import { type Card, CARDS } from "./cards";
+import { kanjiQuestion } from "./kanji";
 import type { Memory } from "./scheduler";
 
 /** How a word or sentence is asked: recognise it on sight → understand it by ear → say it from the Chinese. */
@@ -25,6 +26,8 @@ export function reviewQuestion(card: Card, memory: Memory | undefined, pool: Ite
       return meaningQuestion(card, stageOf(card, memory), pool, rng);
     case "kana":
       return kanaQuestion(card, stageOf(card, memory), pool, rng);
+    case "kanji":
+      return kanjiQuestion(card, stageOf(card, memory), rng);
     default: {
       const unhandled: never = card.kind;
       throw new Error(`no review question for card kind ${String(unhandled)}`);
