@@ -7,3 +7,5 @@ dist/
 coverage/
 .vite/
 *.log
+test-results/
+playwright-report/

@@ -112,6 +112,7 @@ flowchart LR
 npm install
 npm run dev      # http://localhost:5173
 npm test         # 單元測試 + 課程內容檢查
+npm run test:e2e # 端對端測試（第一次先跑 npx playwright install chromium）
 npm run build    # 型別檢查 + 打包到 dist/
 ```
 
@@ -124,9 +125,10 @@ src/
   ui/        畫面：新手引導、課程地圖、上課、測驗、五十音、漢字小教室、聽辨特訓、我的（自我介紹、旅行小抄、設定）
 public/      圖示、manifest 與離線用的 service worker
 tests/       單元測試與內容檢查
+e2e/         端對端測試（Playwright），測試計畫見 docs/testing.md
 ```
 
-程式怎麼分層、新增課程／題型／頁面／設定／儲存資料各要改哪裡，見 [`docs/architecture.md`](docs/architecture.md)。Pull request 會自動跑測試與建置。
+程式怎麼分層、新增課程／題型／頁面／設定／儲存資料各要改哪裡，見 [`docs/architecture.md`](docs/architecture.md)。Pull request 會自動跑測試、建置與端對端測試。
 
 離線用的 `public/sw.js` 與 `public/manifest.webmanifest` 只在正式建置的網站上生效（`npm run dev` 不會註冊 service worker）。
 

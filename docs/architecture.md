@@ -197,5 +197,6 @@ src/ui/pairs.ts       聽辨特訓（#/pairs）＋一輪 12 題（#/pairs-quiz/<
 ## 測試
 
 - `npm test`：單元測試與整個課程的內容檢查。
-- 測試只驗證使用者看得到的行為與資料規則；不測實作細節。
-- pull request 會自動跑測試與建置（`.github/workflows/ci.yml`）；合併到 `main` 後自動部署到 GitHub Pages。
+- `npm run test:e2e`：用 Playwright 在手機尺寸的 Chromium 上，跑正式建置的網站（`e2e/`）。
+- 測試只驗證使用者看得到的行為與資料規則；不測實作細節。分層、風險對照、E2E 的寫法和真機手測清單見 [`testing.md`](testing.md)。
+- pull request 會自動跑測試、建置與 E2E（`.github/workflows/ci.yml`）；合併到 `main` 後自動部署到 GitHub Pages。
