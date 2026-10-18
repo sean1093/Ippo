@@ -20,9 +20,11 @@ test("a whole lesson: learning steps, quiz, result, saved progress", async ({ pa
   await solveDrill(page);
   await expect(page.getByRole("heading", { name: /完成第 3 課/ })).toBeVisible();
   await expect(page.getByText("一次就答對的比例")).toBeVisible();
+  const shown = Number((await page.getByText(/^\d+%$/).textContent())!.replace("%", ""));
 
+  // The saved best is the score on screen.
   const progress = await store<Record<string, { best: number }>>(page, "progress");
-  expect(progress?.greetings?.best).toBeGreaterThanOrEqual(0);
+  expect(progress?.greetings?.best).toBe(shown);
   // Finishing enrols the lesson's cards in daily review and clears the resume point.
   const memory = await store<{ cards: Record<string, unknown>; days: string[] }>(page, "memory");
   expect(Object.keys(memory?.cards ?? {}).length).toBeGreaterThan(0);

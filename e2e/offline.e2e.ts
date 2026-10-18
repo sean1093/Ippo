@@ -15,7 +15,9 @@ test("after one visit the app opens and teaches with no network", async ({ page,
   await context.setOffline(true);
   await page.reload();
   await expect(page.getByRole("link", { name: "第 1 課 日文的聲音" })).toBeVisible();
+  // A hash change alone never reaches the network: reload so the lesson is a real offline page load.
   await page.goto("./#/lesson/greetings");
+  await page.reload();
   await expect(page.getByRole("heading", { name: "打招呼" })).toBeVisible();
   await context.setOffline(false);
 });

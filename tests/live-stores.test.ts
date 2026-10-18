@@ -118,16 +118,21 @@ describe("progress and settings", () => {
   });
 
   it("completeLesson keeps the best score and the latest time", async () => {
-    const state = await import("../src/state");
-    state.completeLesson("greetings", 80);
-    const firstAt = state.progress.greetings!.at;
-    state.completeLesson("greetings", 60);
-    expect(state.progress.greetings!.best).toBe(80);
-    expect(state.progress.greetings!.at >= firstAt).toBe(true);
-    state.completeLesson("greetings", 95);
-    expect(read("progress")).toMatchObject({ greetings: { best: 95 } });
-    state.resetProgress();
-    expect(read("progress")).toEqual({});
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      const state = await import("../src/state");
+      vi.setSystemTime(new Date("2026-10-01T09:00:00Z"));
+      state.completeLesson("greetings", 80);
+      vi.setSystemTime(new Date("2026-10-02T09:00:00Z"));
+      state.completeLesson("greetings", 60);
+      expect(state.progress.greetings).toEqual({ best: 80, at: "2026-10-02T09:00:00.000Z" });
+      state.completeLesson("greetings", 95);
+      expect(read("progress")).toMatchObject({ greetings: { best: 95 } });
+      state.resetProgress();
+      expect(read("progress")).toEqual({});
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("updateSettings saves the change and pushes it into the page", async () => {

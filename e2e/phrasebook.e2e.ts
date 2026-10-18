@@ -42,13 +42,17 @@ test.describe("給店員看", () => {
     await expect(page.locator("body")).not.toHaveClass(/overflow-hidden/);
   });
 
-  test("keeps keyboard focus inside the overlay", async ({ page }) => {
+  test("keeps keyboard focus inside the overlay, wrapping at both ends", async ({ page }) => {
     await page.goto("./#/phrasebook");
     await page.getByRole("button", { name: "給店員看" }).first().click();
     const dialog = page.getByRole("dialog");
-    for (let i = 0; i < 6; i++) {
-      await page.keyboard.press(i % 2 ? "Shift+Tab" : "Tab");
-      await expect(dialog.locator(":focus")).toHaveCount(1);
+    const stops = await dialog.getByRole("button").count();
+    // Twice round in each direction: past the last button, and back past the first.
+    for (const key of ["Tab", "Shift+Tab"]) {
+      for (let i = 0; i < stops * 2; i++) {
+        await page.keyboard.press(key);
+        await expect(dialog.locator(":focus")).toHaveCount(1);
+      }
     }
   });
 

@@ -39,7 +39,7 @@ function fakeSpeech(): void {
 export type Seed = Record<string, unknown>;
 
 interface Fixtures {
-  /** Stores to write before the app first loads; `settings.welcomed` is set unless overridden. */
+  /** Stores to write before the app first loads; `settings` is merged over `{ welcomed: true }`. */
   seed: Seed;
   /** Console errors and uncaught exceptions; every test fails if any were raised. */
   errors: string[];
@@ -61,7 +61,11 @@ export const test = base.extend<Fixtures>({
   ],
   page: async ({ page, seed }, use) => {
     await page.addInitScript(fakeSpeech);
-    const stores: Seed = { settings: { welcomed: true }, ...seed };
+    // `settings: undefined` is a brand-new visitor; any other settings keep the guide out of the way.
+    const stores: Seed = {
+      ...seed,
+      settings: "settings" in seed && seed.settings === undefined ? undefined : { welcomed: true, ...(seed.settings as object) },
+    };
     // Only on the first load of the test: a reload must see what the app itself saved.
     await page.addInitScript((entries) => {
       if (sessionStorage.getItem("e2e.seeded")) return;
@@ -91,6 +95,25 @@ export async function store<T = unknown>(page: Page, name: string): Promise<T | 
 export const footer = (page: Page) => page.locator("footer").last();
 
 /**
+ * Which drill screen is up: a question (an h2, no h1) or the result (its score,
+ * or the 「這次沒有作答」 of a fully skipped drill). Anything else — the page that
+ * linked to the drill, still on screen until the hash change lands — means wait.
+ */
+async function drillScreen(page: Page): Promise<"question" | "result"> {
+  const read = () =>
+    page.evaluate(() => {
+      const main = document.querySelector("main");
+      const h1 = main?.querySelector("h1");
+      const h2 = main?.querySelector("h2");
+      const text = main?.textContent ?? "";
+      if (h2 && !h1) return "question";
+      return h1 && /一次就答對的比例|這次沒有作答/.test(text) ? "result" : null;
+    });
+  await expect.poll(read).not.toBeNull();
+  return (await read())!;
+}
+
+/**
  * Plays a drill to the end the way a learner who learns from mistakes would:
  * the first time a question is seen it gets a guess; a wrong guess shows the
  * correct answer, which is remembered for when the question comes back. Works
@@ -99,11 +122,7 @@ export const footer = (page: Page) => page.locator("footer").last();
 export async function solveDrill(page: Page, maxQuestions = 200): Promise<void> {
   const known = new Map<string, string[]>();
   for (let n = 0; n < maxQuestions; n++) {
-    // Questions are titled with an h2; the result screen with an h1.
-    const question = page.locator("main h2").first();
-    const result = page.locator("main h1").first();
-    await expect(question.or(result)).toBeVisible();
-    if (await result.isVisible()) return;
+    if ((await drillScreen(page)) === "result") return;
 
     // "Say it": self-graded, so 「會」 always clears it.
     const reveal = page.getByRole("button", { name: "看答案" });

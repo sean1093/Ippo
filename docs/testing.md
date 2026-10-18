@@ -38,7 +38,7 @@ Ippo 是純前端的靜態網站，學習紀錄只存在使用者自己的瀏覽
 - **對象是正式建置的網站**：`playwright.config.ts` 會先跑 `npm run build`，再用 `vite preview` 開在 4173 埠，跟 GitHub Pages 服務的是同一份檔案。
 - **手機優先**：預設模擬 Pixel 7（觸控、412px 寬），語系 `zh-TW`。
 - **假的語音引擎**：無頭 Chromium 沒有日文語音，真的引擎也會讓每個測試都在等聲音播完。`fakeSpeech` 換掉 `speechSynthesis`，把要唸的文字記在 `window.__spoken` 並立刻結束。用 `spoken(page)` 檢查唸了什麼。
-- **預先放好存檔**：`test.use({ seed: { progress: {...} } })` 會在第一次載入前寫進 localStorage，格式跟 App 自己存的一樣（`ippo.<名稱>` → `{ v, data }`）。預設 `settings.welcomed = true`，略過新手引導；要測第一次使用的情境，就傳 `settings: undefined`。重新整理不會再寫一次，所以能檢查 App 自己存了什麼。用 `store(page, "memory")` 讀回存檔。
+- **預先放好存檔**：`test.use({ seed: { progress: {...} } })` 會在第一次載入前寫進 localStorage，格式跟 App 自己存的一樣（`ippo.<名稱>` → `{ v, data }`）。傳入的 `settings` 會合併在 `{ welcomed: true }` 之上，所以預設會略過新手引導；要測第一次使用的情境，就傳 `settings: undefined`。重新整理不會再寫一次，所以能檢查 App 自己存了什麼。用 `store(page, "memory")` 讀回存檔。
 - **解題 helper `solveDrill`**：不預先知道任何答案。第一次看到一題就猜；猜錯的話，畫面會顯示正確答案，helper 記下來，等這題重新出現時答對。這和學習者的經驗一樣，所以內容改了也不用改測試。
 - **Service worker 預設封鎖**，避免拿到上一次建置的快取；只有 `offline.e2e.ts` 會打開它。
 - **一個測試會走完整段測驗時**，加上 `test.slow()`。

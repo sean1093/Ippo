@@ -18,11 +18,14 @@ test.describe("daily review", () => {
     await page.getByRole("link", { name: "開始複習" }).click();
     await solveDrill(page);
     await expect(page.getByRole("heading", { name: "複習完成！" })).toBeVisible();
+    const reviewed = Number((await page.getByText(/^複習了 \d+ 張卡片$/).textContent())!.match(/\d+/)![0]);
+    expect(reviewed).toBeGreaterThan(0);
 
     type Memory = { cards: Record<string, { due: number }>; days: string[] };
     const memory = await store<Memory>(page, "memory");
     const rescheduled = Object.values(memory!.cards).filter((card) => card.due > Date.now()).length;
-    expect(rescheduled).toBeGreaterThanOrEqual(Math.min(due, 20));
+    // Every card the session asked is now due later.
+    expect(rescheduled).toBeGreaterThanOrEqual(reviewed);
     expect(memory!.days).toHaveLength(1);
   });
 
@@ -58,7 +61,7 @@ test("漢字小教室 trap quiz runs to the end", async ({ page }) => {
   await page.goto("./#/kanji");
   await page.getByRole("link", { name: "陷阱測驗" }).click();
   await solveDrill(page);
-  await expect(page.locator("main h1")).toBeVisible();
+  await expect(page.getByText("一次就答對的比例")).toBeVisible();
 });
 
 test("a unit challenge runs to the end and keeps its best score", async ({ page }) => {
@@ -67,7 +70,7 @@ test("a unit challenge runs to the end and keeps its best score", async ({ page 
   await page.goto("./#/challenge/greetings");
   await page.getByRole("button", { name: "開始挑戰" }).click();
   await solveDrill(page);
-  await expect(page.locator("main h1")).toBeVisible();
+  await expect(page.getByText("一次就答對的比例")).toBeVisible();
   const best = await store<Record<string, number>>(page, "challenges");
   expect(Object.keys(best ?? {})).toContain("greetings");
 });

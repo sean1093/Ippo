@@ -28,11 +28,25 @@ test.describe("跟隨系統", () => {
 });
 
 test("romaji and furigana switches hide them across the app", async ({ page }) => {
+  await page.goto("./#/phrasebook");
+  const romaji = page.locator(".romaji");
+  const ruby = page.locator("rt");
+  await expect(romaji.first()).toBeVisible();
+  await expect(ruby.first()).toBeVisible();
+
   await page.goto("./#/settings");
   await page.getByRole("button", { name: "不顯示", exact: true }).click();
+  // The switch is a visually hidden checkbox inside its label: tap the label, as a finger would.
+  await page.getByText("顯示漢字讀音", { exact: true }).click();
+  await expect(page.getByRole("switch", { name: /顯示漢字讀音/ })).not.toBeChecked();
   await expect(page.locator("html")).toHaveClass(/no-romaji/);
+  await expect(page.locator("html")).toHaveClass(/no-furigana/);
+
   await page.goto("./#/phrasebook");
-  await expect(page.locator(".romaji").first()).toBeHidden();
+  expect(await romaji.count()).toBeGreaterThan(0);
+  for (const el of await romaji.all()) await expect(el).toBeHidden();
+  expect(await ruby.count()).toBeGreaterThan(0);
+  for (const el of await ruby.all()) await expect(el).toBeHidden();
 });
 
 test.describe("學習紀錄", () => {
@@ -53,12 +67,14 @@ test.describe("學習紀錄", () => {
     await expect(page.getByText("學習紀錄已清除。")).toBeVisible();
     expect(await store(page, "progress")).toEqual({});
 
+    let confirmed = "";
     page.once("dialog", (dialog) => {
-      expect(dialog.message()).toContain("1 課的紀錄");
+      confirmed = dialog.message();
       void dialog.accept();
     });
-    await page.locator('input[type="file"]').setInputFiles(file);
-    await page.waitForEvent("load");
+    // Accepting reloads the page to pick up the restored stores.
+    await Promise.all([page.waitForEvent("load"), page.locator('input[type="file"]').setInputFiles(file)]);
+    expect(confirmed).toContain("1 課的紀錄");
     await expect(page.getByText("已完成 1 課。")).toBeVisible();
     expect(await store(page, "progress")).toMatchObject({ greetings: { best: 90 } });
   });

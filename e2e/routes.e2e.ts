@@ -32,18 +32,18 @@ for (const hash of PAGES) {
   });
 }
 
-for (const size of ["xlarge"] as const) {
-  test(`the course map still fits the phone at text size ${size}`, async ({ page }) => {
-    await page.addInitScript((textSize) => {
-      localStorage.setItem("ippo.settings", JSON.stringify({ v: 1, data: { welcomed: true, textSize } }));
-    }, size);
+test.describe("at 特大 text size", () => {
+  test.use({ seed: { settings: { textSize: "xlarge" } } });
+
+  test("the busiest pages still fit the phone", async ({ page }) => {
     for (const hash of ["#/", "#/practice", "#/settings", "#/lesson/greetings"]) {
       await page.goto(`./${hash}`);
+      await expect(page.locator("html")).toHaveAttribute("data-text-size", "xlarge");
       await expect(page.locator("h1").first()).toBeVisible();
       await noSidewaysScroll(page);
     }
   });
-}
+});
 
 test("unknown pages fall back to the course map", async ({ page }) => {
   for (const hash of ["#/nope", "#/constructor", "#/__proto__", "#/lesson/nope", "#/challenge/nope"]) {
