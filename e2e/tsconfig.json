@@ -1,0 +1,8 @@
+{
+  // The end-to-end tests run on Node (Playwright), unlike the app; typecheck them on their own.
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["./**/*.ts", "../playwright.config.ts"]
+}
