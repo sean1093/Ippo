@@ -108,7 +108,7 @@ function showToClerk(card: Card): void {
   );
   const overlay = h(
     "div",
-    { class: "fixed inset-0 z-50 flex flex-col bg-paper", role: "dialog", "aria-modal": "true", "aria-label": "給店員看" },
+    { class: "px-safe fixed inset-0 z-50 flex flex-col bg-paper", role: "dialog", "aria-modal": "true", "aria-label": "給店員看" },
     h("div", { class: "pt-safe flex justify-end px-3" }, close),
     h(
       "div",
