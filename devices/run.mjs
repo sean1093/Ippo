@@ -49,7 +49,11 @@ function stopServer() {
 
 // ---- Results ---------------------------------------------------------------
 
-/** @type {{ area: string, check: string, status: "pass" | "fail" | "look" | "info", detail: string, shot?: string }[]} */
+/**
+ * pass / fail: the app; look: a person has to judge the screenshot; skip: the
+ * simulator itself cannot do it (no voice installed, say), so nothing is known.
+ * @type {{ area: string, check: string, status: "pass" | "fail" | "look" | "skip", detail: string, shot?: string }[]}
+ */
 const results = [];
 
 function record(area, check, status, detail = "", shot) {
@@ -74,6 +78,17 @@ async function fresh(d, stores, hash) {
   await d.run(page.seed, stores);
   await d.reload();
   if (!(await d.run(page.waitFor, { selector: "h1" }))) throw new Error(`no heading on ${hash}`);
+}
+
+/** Turns the phone and waits until the page itself is the other way round; a turn that never lands is an error, not a pass. */
+async function turn(d, landscape) {
+  await d.rotate(landscape);
+  for (let i = 0; i < 20; i++) {
+    await sleep(500);
+    const { viewport } = await d.run(page.probe, null);
+    if (viewport.width > viewport.height === landscape) return;
+  }
+  throw new Error(`the screen did not turn ${landscape ? "sideways" : "upright"}`);
 }
 
 async function click(d, text) {
@@ -101,7 +116,8 @@ async function sound(d) {
   await d.run(page.waitFor, { selector: "h1" });
   const { supported, voices, total } = await d.run(page.voices, null);
   if (!supported) record("聲音", "日文語音", "fail", "瀏覽器不支援 speechSynthesis");
-  else if (voices.length === 0) record("聲音", "日文語音", "fail", `沒有日文語音（共 ${total ?? 0} 個語音）`);
+  // A simulator image without a Japanese voice says nothing about phones, which ship one or offer it.
+  else if (voices.length === 0) record("聲音", "日文語音", "skip", `模擬器沒有日文語音（共 ${total ?? 0} 個語音），真機才知道`);
   else record("聲音", "日文語音", "pass", voices.join("、"));
 
   await click(d, "下一步");
@@ -112,7 +128,9 @@ async function sound(d) {
   await sleep(6000);
   const log = await d.run(page.speechLog, null);
   const entry = log?.[0];
-  if (!entry) record("聲音", "「聽聽看」按下去會唸", "fail", "按了沒有送出任何語音");
+  if (voices.length === 0)
+    record("聲音", "「聽聽看」按下去會唸", "skip", `模擬器沒有日文語音，無從判斷（${entry ? `事件：${entry.events.join(" → ") || "無"}` : "沒有送出語音"}）`);
+  else if (!entry) record("聲音", "「聽聽看」按下去會唸", "fail", "按了沒有送出任何語音");
   else if (entry.events.includes("end") && !entry.events.some((e) => e.startsWith("error")))
     record("聲音", "「聽聽看」按下去會唸", "pass", `語音 ${entry.voice ?? "預設"}，事件 ${entry.events.join(" → ")}（模擬器聽不到實際音質）`);
   else record("聲音", "「聽聽看」按下去會唸", "fail", `事件：${entry.events.join(" → ") || "沒有任何事件"}`);
@@ -138,15 +156,13 @@ async function screens(d) {
   await click(d, "給店員看");
   await d.run(page.waitFor, { selector: "[role=dialog]" });
   layout("畫面", "給店員看（直拿）", await d.run(page.probe, null), await shot(d, "clerk-portrait"));
-  await d.rotate(true);
-  await sleep(1500);
+  await turn(d, true);
   layout("畫面", "給店員看（橫拿）", await d.run(page.probe, null), await shot(d, "clerk-landscape"));
 
   await fresh(d, WELCOMED, "/");
   await sleep(500);
   layout("畫面", "課程地圖與分頁列（橫拿）", await d.run(page.probe, null), await shot(d, "home-landscape"));
-  await d.rotate(false);
-  await sleep(1500);
+  await turn(d, false);
 }
 
 const BUSY = ["/", "/practice", "/kana", "/kanji", "/pairs", "/me", "/me/edit", "/phrasebook", "/settings", "/lesson/greetings", "/lesson/hotel", "/challenge/daily-life"];
@@ -191,7 +207,7 @@ async function offline(d) {
 
 // ---- Report -------------------------------------------------------------------
 
-const ICON = { pass: "✅", fail: "❌", look: "👀", info: "ℹ️" };
+const ICON = { pass: "✅", fail: "❌", look: "👀", skip: "⏭️" };
 
 async function report(device) {
   const lines = [
@@ -221,6 +237,8 @@ try {
       await step(d);
     } catch (error) {
       record("執行", step.name, "fail", `腳本中斷：${error.message}`, await shot(d, `error-${step.name}`).catch(() => undefined));
+      // A step that broke off sideways must not leave the next one sideways too.
+      await d.rotate(false).catch(() => {});
     }
   }
   await report(d.device);

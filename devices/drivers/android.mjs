@@ -18,7 +18,9 @@ export async function connect() {
   const chrome = (await device.shell("dumpsys package com.android.chrome | grep versionName")).toString().trim().split("=")[1];
   return driver(page, `Android ${version} 模擬器（${device.model()}）· Chrome ${chrome}`, {
     rotate: async (landscape) => {
+      // The setting alone is not always picked up by a running app; lock the window manager's rotation too.
       await device.shell(`settings put system user_rotation ${landscape ? 1 : 0}`);
+      await device.shell(`wm user-rotation lock ${landscape ? 1 : 0}`);
     },
     // The whole screen, status and navigation bars included: that is where overlap shows.
     screenshot: async (path) => writeFile(path, await device.screenshot()),

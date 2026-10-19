@@ -37,7 +37,9 @@ export async function connect({ base }) {
     device: `${name} 模擬器 · iOS ${version} · Safari`,
     open: (url) => browser.url(url),
     reload: () => browser.refresh(),
-    run: (fn, arg) => browser.executeAsync(fn, arg),
+    // WebdriverIO 10 dropped executeAsync; the protocol command underneath is still W3C's async script.
+    run: (fn, arg) =>
+      browser.executeAsyncScript(`const done = arguments[arguments.length - 1]; (${fn.toString()})(arguments[0], done);`, [arg]),
     /**
      * A tap from the simulator itself: iOS speaks only inside a user gesture,
      * and a click injected into the page is not one. The aria-label is what
