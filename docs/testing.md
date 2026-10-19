@@ -65,6 +65,19 @@ npm run test:e2e -- --ui          # 互動模式，可以一步一步看
 - `check`：`npm test`，接著 `npm run build`（型別檢查 + 打包）。
 - `e2e`：`npm run typecheck:e2e`，接著安裝 Chromium，最後跑 `npm run test:e2e`。
 
+## 模擬器（GitHub Actions）
+
+`.github/workflows/devices.yml` 會在 iOS 模擬器的 Safari 和 Android 模擬器的 Chrome 上，跑正式建置的網站，替真機清單先檢查做得到的部分：
+- 有沒有日文語音，按「聽聽看」之後語音有沒有唸完。按鈕是用模擬器本身的點擊按下去的，因為 iOS 只在使用者操作時才會發聲。
+- 上課頁、分頁列和「給店員看」的按鈕，有沒有被瀏海、Home 條或系統列擋到；「給店員看」直拿、橫拿時字有沒有被切掉。
+- 特大字體下，12 個最滿的頁面有沒有需要左右捲動。
+- 深色模式。只截圖，由人來看對比。
+- 關掉伺服器之後，還能不能從快取打開課程頁。這是在瀏覽器裡測的，不是加到主畫面的 App。
+
+到 Actions 分頁選 **devices → Run workflow** 執行；填了 issue 編號，結果會留言到那個 issue，截圖在這次執行的 artifacts 裡。改了 `devices/` 的 pull request 也會自動跑。腳本本身可以先在本機試跑：`npm run build && node devices/run.mjs desktop`。
+
+模擬器測不到麥克風、錄音、系統分享選單和加到主畫面，也聽不到實際音質，所以這些仍要用真機確認。
+
 ## 真機手測清單（發版前）
 
 自動化測不到裝置本身的能力。發版前，用一台 iPhone（Safari）和一台 Android（Chrome）走一遍：
