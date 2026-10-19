@@ -17,6 +17,23 @@ export function waitFor({ selector, timeout = 10000 }, done) {
   })();
 }
 
+/** Marks the page now on screen, so a reload can be told apart from a page that has not gone yet. */
+export function markStale(_, done) {
+  window.__ippoStale = true;
+  done(true);
+}
+
+/** Resolves once a new page (no stale mark) has its heading, or false after `timeout` ms. */
+export function freshPage({ timeout = 20000 }, done) {
+  const start = Date.now();
+  (function poll() {
+    const h1 = document.querySelector("h1");
+    if (!window.__ippoStale && h1 && h1.getClientRects().length > 0) return done(true);
+    if (Date.now() - start > timeout) return done(false);
+    setTimeout(poll, 100);
+  })();
+}
+
 /** Replaces the app's stores, as the app itself writes them (`ippo.<name>` → `{ v, data }`). */
 export function seed(stores, done) {
   localStorage.clear();

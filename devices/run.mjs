@@ -76,8 +76,22 @@ const WELCOMED = { settings: { welcomed: true } };
 async function fresh(d, stores, hash) {
   await d.open(`${BASE}#${hash}`);
   await d.run(page.seed, stores);
+  await reload(d);
+}
+
+/**
+ * Reloads and waits for the new page. Safari through Appium can return from a
+ * refresh before the old page is gone, and a check run then would read it.
+ */
+async function reload(d) {
+  await d.run(page.markStale, null);
   await d.reload();
-  if (!(await d.run(page.waitFor, { selector: "h1" }))) throw new Error(`no heading on ${hash}`);
+  for (let i = 0; i < 20; i++) {
+    // A script sent while the page is being replaced can fail; just ask again.
+    if (await d.run(page.freshPage, { timeout: 5000 }).catch(() => false)) return;
+    await sleep(500);
+  }
+  throw new Error("the page did not reload");
 }
 
 /** Turns the phone and waits until the page itself is the other way round; a turn that never lands is an error, not a pass. */
@@ -112,8 +126,7 @@ function layout(area, check, facts, shotFile) {
 async function sound(d) {
   await d.open(BASE);
   await d.run(page.seed, {});
-  await d.reload();
-  await d.run(page.waitFor, { selector: "h1" });
+  await reload(d);
   const { supported, voices, total } = await d.run(page.voices, null);
   if (!supported) record("聲音", "日文語音", "fail", "瀏覽器不支援 speechSynthesis");
   // A simulator image without a Japanese voice says nothing about phones, which ship one or offer it.
@@ -186,7 +199,7 @@ async function largeText(d) {
 async function offline(d) {
   await fresh(d, WELCOMED, "/");
   // The worker takes over on the next load after it installs.
-  await d.reload();
+  await reload(d);
   const ok = await d.run(page.controlled, { timeout: 20000 });
   if (ok !== true) {
     record("離線", "沒網路也能打開並上課", "fail", ok === "unsupported" ? "不支援 service worker" : "service worker 沒有接管頁面");
@@ -194,8 +207,10 @@ async function offline(d) {
   }
   stopServer();
   await d.open(`${BASE}#/lesson/greetings`);
-  await d.reload();
-  const opened = await d.run(page.waitFor, { selector: "h1", timeout: 15000 });
+  const opened = await reload(d).then(
+    () => true,
+    () => false,
+  );
   record(
     "離線",
     "沒網路也能打開並上課",

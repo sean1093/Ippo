@@ -15,7 +15,7 @@ export async function connect() {
   const context = await device.launchBrowser();
   const page = context.pages()[0] ?? (await context.newPage());
   const version = (await device.shell("getprop ro.build.version.release")).toString().trim();
-  const chrome = (await device.shell("dumpsys package com.android.chrome | grep versionName")).toString().trim().split("=")[1];
+  const chrome = (await device.shell("dumpsys package com.android.chrome")).toString().match(/versionName=(\S+)/)?.[1] ?? "?";
   return driver(page, `Android ${version} 模擬器（${device.model()}）· Chrome ${chrome}`, {
     rotate: async (landscape) => {
       // The setting alone is not always picked up by a running app; lock the window manager's rotation too.
