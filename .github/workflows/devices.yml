@@ -1,0 +1,162 @@
+# Runs the built site in iOS Safari (iOS Simulator) and Android Chrome (Android
+# emulator) and reports what docs/testing.md's real-device checklist can learn
+# without a person: Japanese voices, safe areas, 給店員看 in both orientations,
+# 特大 text, dark mode, offline. Microphone, recording, the share sheet and
+# installing to the home screen still need a real phone.
+#
+# Run it from the Actions tab (devices → Run workflow). With an issue number,
+# the results are posted there as a comment; screenshots are in the artifacts.
+name: devices
+
+on:
+  workflow_dispatch:
+    inputs:
+      issue:
+        description: 結果留言到哪個 issue（留空就不留言）
+        required: false
+        default: "20"
+  pull_request:
+    paths:
+      - .github/workflows/devices.yml
+      - devices/**
+
+permissions:
+  contents: read
+
+concurrency:
+  group: devices-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios:
+    runs-on: macos-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Boot an iPhone simulator
+        # The newest iOS runtime and the newest iPhone on it without a Home
+        # button, so there is a notch or Dynamic Island to stay clear of.
+        run: |
+          xcrun simctl list devices available -j | python3 -c '
+          import json, re, sys
+          best = None
+          for runtime, devices in json.load(sys.stdin)["devices"].items():
+              m = re.search(r"iOS-(\d+)-(\d+)", runtime)
+              if not m:
+                  continue
+              for d in devices:
+                  n = re.fullmatch(r"iPhone (\d+)( Pro)?", d["name"])
+                  if n:
+                      key = (int(m[1]), int(m[2]), int(n[1]), bool(n[2]))
+                      if best is None or key > best[0]:
+                          best = (key, d, f"{m[1]}.{m[2]}")
+          if best is None:
+              sys.exit("no iPhone simulator found")
+          _, device, version = best
+          udid, name = device["udid"], device["name"]
+          print(f"IOS_UDID={udid}")
+          print(f"IOS_NAME={name}")
+          print(f"IOS_VERSION={version}")
+          ' >> "$GITHUB_ENV"
+          cat "$GITHUB_ENV"
+          source <(grep '^IOS_' "$GITHUB_ENV")
+          xcrun simctl boot "$IOS_UDID"
+          xcrun simctl bootstatus "$IOS_UDID" -b
+
+      - name: Start Appium
+        run: |
+          npm install --global appium@3.8.0
+          appium driver install xcuitest@12.19.0
+          npm install --no-save webdriverio@10.1.0
+          nohup appium --address 127.0.0.1 --port 4723 > appium.log 2>&1 &
+          for i in $(seq 60); do curl -sf http://127.0.0.1:4723/status > /dev/null && exit 0; sleep 2; done
+          cat appium.log; exit 1
+
+      - run: node devices/run.mjs ios
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: devices-ios
+          path: |
+            device-results/ios/
+            appium.log
+          retention-days: 30
+
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: "24"
+          cache: npm
+
+      - run: npm ci
+      - run: npm run build
+
+      - name: Enable KVM for the emulator
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -no-boot-anim -camera-back none
+          # The device's localhost:4173 is the server on this runner, and stays a secure context for the service worker.
+          script: |
+            adb reverse tcp:4173 tcp:4173
+            node devices/run.mjs android
+
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: devices-android
+          path: device-results/android/
+          retention-days: 30
+
+  report:
+    needs: [ios, android]
+    if: always() && github.event_name == 'workflow_dispatch' && inputs.issue != ''
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: devices-*
+          path: results
+
+      - name: Post the results on the issue
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          {
+            echo "## 模擬器測試結果（$(date -u +%Y-%m-%d)，commit ${GITHUB_SHA::7}）"
+            echo
+            echo "✅ 通過　❌ 有問題　👀 要人看截圖。截圖在 [這次執行的 artifacts]($RUN_URL)（devices-ios、devices-android）。"
+            echo
+            for f in results/devices-ios/device-results/ios/summary.md results/devices-android/summary.md; do
+              [ -f "$f" ] && cat "$f" && echo
+            done
+            echo "麥克風辨識、跟讀錄音、系統分享選單、加到主畫面，以及實際音質，模擬器測不到，仍要用真機確認。"
+          } > comment.md
+          gh issue comment "${{ inputs.issue }}" --repo "$GITHUB_REPOSITORY" --body-file comment.md
