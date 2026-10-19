@@ -118,6 +118,13 @@ body {
   padding-top: calc(env(safe-area-inset-top) + 0.75rem);
 }
 
+/* Sideways, the notch and the rounded corners take the left and right edges.
+   Only full-screen layers need this: the app itself is a narrow centred column. */
+.px-safe {
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+}
+
 /* Last so it beats the button's resting colours. */
 .speaking {
   @apply bg-ai text-on-accent;
