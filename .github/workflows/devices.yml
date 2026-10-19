@@ -66,11 +66,12 @@ jobs:
           print(f"IOS_UDID={udid}")
           print(f"IOS_NAME={name}")
           print(f"IOS_VERSION={version}")
-          ' >> "$GITHUB_ENV"
-          cat "$GITHUB_ENV"
-          source <(grep '^IOS_' "$GITHUB_ENV")
-          xcrun simctl boot "$IOS_UDID"
-          xcrun simctl bootstatus "$IOS_UDID" -b
+          ' > simulator.env
+          cat simulator.env | tee -a "$GITHUB_ENV"
+          # macOS ships bash 3.2, and the name has spaces: read the one value back plainly.
+          udid=$(grep '^IOS_UDID=' simulator.env | cut -d= -f2)
+          xcrun simctl boot "$udid"
+          xcrun simctl bootstatus "$udid" -b
 
       - name: Start Appium
         run: |
