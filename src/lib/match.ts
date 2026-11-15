@@ -1,5 +1,4 @@
-import type { Jp } from "../content/types";
-import { plain, readings } from "./jp";
+import { type Jp, plain, readings } from "./jp";
 
 /**
  * Scoring what the speech recogniser heard against what should have been said.

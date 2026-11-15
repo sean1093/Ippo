@@ -88,13 +88,15 @@ export function accuracy(score: CategoryScore | undefined): number | null {
 // ---- The learner's live record -------------------------------------------------
 
 const store = defineStore("pairs", 1, parsePairsData);
-const saved = store.load();
+let saved = store.load();
+store.onExternalChange(() => (saved = store.load()));
 
 export function categoryScore(category: string): CategoryScore | undefined {
   return saved.categories[category];
 }
 
 export function recordPairTrial(category: string, correct: boolean): void {
+  saved = store.latest(saved);
   recordTrial(saved, category, correct);
   store.save(saved);
 }

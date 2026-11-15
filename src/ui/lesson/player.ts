@@ -6,6 +6,7 @@ import { lessonCardIds } from "../../learn/cards";
 import { answer, currentMixIns, introduce, memoryOf, studied } from "../../learn/memory";
 import { clearResume, resumePoint, saveResume } from "../../learn/resume";
 import { reviewQuestions } from "../../learn/review";
+import { askToPersist } from "../../lib/persist";
 import { lessonQuestions, type Question } from "../../quiz/questions";
 import { completeLesson, progress, settings, updateSettings } from "../../state";
 import { BUTTON, fill, focusHeading, h, icon, LABEL } from "../dom";
@@ -196,6 +197,8 @@ export function renderLesson(root: HTMLElement, lesson: Lesson): void {
     // A quiz nobody answered — every question skipped — is not a finished lesson.
     if (answered > 0) {
       completeLesson(lesson.id, score);
+      // There is a record to lose now: ask the browser to keep it.
+      void askToPersist();
       introduce(lessonCardIds(lesson));
       studied();
     }

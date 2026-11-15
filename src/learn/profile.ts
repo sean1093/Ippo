@@ -143,6 +143,16 @@ export function parseProfile(data: unknown): Profile | null {
 
 const store = defineStore("profile", 1, parseProfile);
 let saved = store.load();
+store.onExternalChange(() => (saved = store.load()));
+
+/**
+ * Calls `listener` after another tab changed the profile, so what is derived
+ * from it (the self-introduction cards) can follow. Registered after the
+ * reload above, so `currentProfile()` is already the new one.
+ */
+export function onProfileChange(listener: () => void): void {
+  store.onExternalChange(listener);
+}
 
 export function currentProfile(): Profile | null {
   return saved;

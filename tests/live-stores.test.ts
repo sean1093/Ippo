@@ -114,7 +114,7 @@ describe("progress and settings", () => {
       },
       querySelector: () => null,
     });
-    vi.stubGlobal("window", {});
+    vi.stubGlobal("window", { addEventListener: () => {} });
   });
 
   it("completeLesson keeps the best score and the latest time", async () => {

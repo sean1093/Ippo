@@ -6,15 +6,27 @@ Ippo 是純前端的靜態網站：沒有後端，學習資料存在瀏覽器的
 
 ```
 src/
+  lib/       與畫面無關的基礎：日文標記、羅馬拼音、語音、聽寫、錄音、儲存、備份
   content/   課程內容與內容檢查（純資料，不碰 DOM）
-  lib/       與畫面無關的基礎：日文標記、羅馬拼音、語音、儲存
   quiz/      出題與測驗流程（純邏輯，可單元測試）
-  ui/        畫面；每個頁面一個模組，共用元件在 dom.ts、japanese.ts、layout.ts
+  learn/     卡片、FSRS 排程、記憶狀態、個人資料與旅行小抄等學習紀錄
   state.ts   設定與課程進度（全域狀態）
-  main.ts    頁面表與路由
+  ui/        畫面；每個頁面一個模組，共用元件在 dom.ts、japanese.ts、layout.ts
+  main.ts    頁面表、路由與啟動
 ```
 
-依賴方向只往下：`ui → quiz → content → lib`。`content`、`lib`、`quiz` 都不 import `ui`，所以能在 Node 裡直接測試。
+依賴方向只往下，每一層只能 import 表裡列出的層：
+
+| 層 | 可以 import |
+|---|---|
+| `ui/`、`main.ts` | 全部 |
+| `learn/` | `quiz/`、`content/`、`lib/` |
+| `quiz/` | `content/`、`lib/` |
+| `content/` | `lib/` |
+| `state.ts` | `lib/` |
+| `lib/` | （無） |
+
+`lib`、`content`、`quiz`、`learn` 都不 import `ui`，所以能在 Node 裡直接測試。這張表由 `tests/layers.test.ts` 強制：一個 import 走錯方向時，`npm test` 會列出檔案、行號和它碰到的層。要改規則就同時改這張表和測試裡的 `ALLOWED`。
 
 ## 擴充點
 
@@ -71,6 +83,9 @@ src/
 - 存在 `ippo.<name>`，內容包成 `{ v, data }`。
 - `parse(data, savedVersion)` 必須對任何輸入都回傳合法的值（資料可能被手動改過，或來自舊版本）。
 - 要改資料格式時：把 `version` 加一，並在 `parse` 裡依 `savedVersion` 轉換舊格式。在加入版本號之前存的資料，`savedVersion` 是 0。
+- **改資料前先 `x = store.latest(x)`，在記憶體裡留一份的模組也要接 `store.onExternalChange(() => (x = store.load()))`。** `latest()` 讀回最新存檔，另一個分頁剛寫入、但事件還沒送到時也不會被蓋掉；儲存已經寫入失敗時則保留這個分頁手上的資料，不然還沒存下來的進度會被丟掉。 同一個瀏覽器開兩個分頁時，別的分頁寫入會觸發 `storage` 事件；不重新讀取的話，這個分頁下一次存檔就會用舊資料把對方的紀錄蓋掉。設定改變時 `state.ts` 另外會重新 `applySettings()`，開著的設定頁也會重畫；自我介紹改變時 `main.ts` 透過 `onProfileChange()` 重建自我介紹的卡片。目前的畫面不會因為別的分頁而重畫（避免打斷正在做的測驗），下一次換頁就是新的資料。
+- **寫入失敗**（無痕模式、空間滿了）不會讓 App 壞掉，但 `onWriteFailure()` 會通知一次；`src/ui/storage-notice.ts` 據此在 App 上方（不是浮在畫面上，才不會擋住上課頁的「離開」）顯示「沒能保存學習紀錄」，可以關掉，同一次使用期間不再出現。
+- **持久化儲存**：`src/lib/persist.ts` 的 `askToPersist()` 在有了學習紀錄之後（完成一課時，以及之後每次啟動）請瀏覽器保留資料；第一次打開不會問。設定頁的「學習紀錄」用 `persistence()` 顯示目前是否受保護，不支援的瀏覽器不顯示。
 
 ### 備份與還原
 `src/lib/backup.ts` 把 localStorage 裡所有 `ippo.` 開頭的 key 原封不動包成一個檔案，所以**新增一個 store 不用改備份程式**：
@@ -191,7 +206,7 @@ src/ui/pairs.ts       聽辨特訓（#/pairs）＋一輪 12 題（#/pairs-quiz/<
 ## 離線使用（PWA）
 
 - `public/manifest.webmanifest` 與 `public/sw.js` 直接複製到 `dist/`，網址全部相對，所以在 GitHub Pages 的子路徑也能用。
-- Service worker 只在 `import.meta.env.PROD` 時由 `src/main.ts` 註冊：安裝時快取 `./`、`./index.html` 和 index 裡面的 `./assets/…`；開頁面走「先連網、連不到就用快取」（只有正常回應才會覆蓋離線用的首頁），其他同源 GET 走「先快取」。改版時把 `sw.js` 裡的 `CACHE` 加一號，activate 時會刪掉其他 `ippo-` 開頭的快取——快取空間是整個網域共用的，同一個 GitHub 帳號的其他專案不能掃到。
+- Service worker 只在 `import.meta.env.PROD` 時由 `src/main.ts` 註冊：安裝時快取 `./`、`./index.html` 和 index 裡面的 `./assets/…`；開頁面走「先連網、連不到就用快取」（只有正常回應才會覆蓋離線用的首頁），其他同源 GET 走「先快取」。每次連網開頁面拿到新的 `index.html` 後，會刪掉快取裡它沒引用到的 `./assets/…`（檔名帶 hash，每次部署都會多一批），所以一般部署不用動 `sw.js`。只有改了快取的規則（例如換了要預先快取的檔案）才把 `CACHE` 加一號，activate 時會刪掉其他 `ippo-` 開頭的快取——快取空間是整個網域共用的，同一個 GitHub 帳號的其他專案不能掃到。
 - 圖示（`icon-192.png`、`icon-512.png`、`icon-maskable-512.png`、`apple-touch-icon.png`）是用無頭瀏覽器把 `public/favicon.svg` 截圖產生的，換圖示時重做一次即可。
 
 ## 測試

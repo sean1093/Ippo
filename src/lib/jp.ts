@@ -10,6 +10,9 @@ import { TRAILING_PUNCT, wordToRomaji } from "./romaji";
  * exercise. Writing the reading once is what keeps those five in agreement.
  */
 
+/** Japanese in Ippo markup, as described above. */
+export type Jp = string;
+
 /** A run of text; `ruby` is set when the run is kanji with its kana reading. */
 export interface Segment {
   text: string;

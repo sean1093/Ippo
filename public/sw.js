@@ -40,11 +40,11 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET" || new URL(request.url).origin !== self.location.origin) return;
-  event.respondWith(request.mode === "navigate" ? navigation(request) : asset(request));
+  event.respondWith(request.mode === "navigate" ? navigation(request, event) : asset(request));
 });
 
 /** Pages: the network wins when it answers, so a new build is picked up at once. */
-async function navigation(request) {
+async function navigation(request, event) {
   try {
     const response = await fetch(request);
     // A 404 page or a captive portal's answer must never become the offline
@@ -52,11 +52,47 @@ async function navigation(request) {
     if (response.ok && response.type === "basic") {
       const cache = await caches.open(CACHE);
       await cache.put("./index.html", response.clone()).catch(() => {});
+      event.waitUntil(response.clone().text().then((html) => prune(cache, html)).catch(() => {}));
     }
     return response;
   } catch {
     const cached = (await caches.match("./index.html")) ?? (await caches.match("./"));
     return cached ?? Response.error();
+  }
+}
+
+/**
+ * Drops cached build assets the current build no longer uses. Their file
+ * names carry a content hash, so every deploy adds new ones under the same
+ * CACHE and the old ones would otherwise stay forever. "Uses" follows the
+ * references from index.html into the cached scripts and stylesheets, so a
+ * font named in the CSS or a chunk a script imports is kept too. Unhashed
+ * files (the shell, the manifest, icons) are left alone.
+ */
+async function prune(cache, html) {
+  const scope = self.registration.scope;
+  const assets = new URL("./assets/", scope).href;
+  const keep = new Set([...html.matchAll(ASSET_HREF)].map((match) => new URL(match[1], scope).href));
+  // An index that names no assets is not a build we know how to read: keep everything.
+  if (keep.size === 0) return;
+  const cached = (await cache.keys()).filter((request) => request.url.startsWith(assets));
+  const named = new Set(cached.map((request) => request.url.slice(assets.length)));
+  // Walk outward from the index: each kept script or stylesheet may name more assets.
+  const queue = [...keep];
+  while (queue.length > 0) {
+    const url = queue.pop();
+    if (!/\.(js|css)$/.test(url)) continue;
+    const body = await (await cache.match(url))?.text();
+    for (const name of named) {
+      const href = assets + name;
+      if (!keep.has(href) && body?.includes(name)) {
+        keep.add(href);
+        queue.push(href);
+      }
+    }
+  }
+  for (const request of cached) {
+    if (!keep.has(request.url)) await cache.delete(request);
   }
 }
 

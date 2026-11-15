@@ -128,6 +128,7 @@ export function parseChallenges(data: unknown): Record<string, ChallengeRecord> 
 
 const store = defineStore("challenges", 1, parseChallenges);
 let records = store.load();
+store.onExternalChange(() => (records = store.load()));
 
 export function resetChallenges(): void {
   records = {};
@@ -140,6 +141,7 @@ export function bestChallenge(unitId: string): number | undefined {
 
 /** Records a finished challenge, keeping the best score. */
 export function completeChallenge(unitId: string, score: number): void {
+  records = store.latest(records);
   records = { ...records, [unitId]: { best: Math.max(score, records[unitId]?.best ?? 0), at: new Date().toISOString() } };
   store.save(records);
 }

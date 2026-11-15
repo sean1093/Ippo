@@ -1,5 +1,7 @@
-/** Japanese in Ippo markup — see src/lib/jp.ts. */
-export type Jp = string;
+// Defined in lib, the bottom layer, which must not reach up into content.
+import type { Jp } from "../lib/jp";
+
+export type { Jp };
 
 export interface Example {
   jp: Jp;

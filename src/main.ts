@@ -2,10 +2,12 @@ import "./style.css";
 import { COURSE, LESSONS } from "./content/course";
 import { lessonCardIds, setProfileCards } from "./learn/cards";
 import { introduce } from "./learn/memory";
-import { currentProfile } from "./learn/profile";
+import { currentProfile, onProfileChange } from "./learn/profile";
+import { askToPersist } from "./lib/persist";
 import { onVoicesChanged } from "./lib/speech";
-import { applySettings, progress, settings } from "./state";
+import { applySettings, onSettingsChange, progress, settings } from "./state";
 import { renderChallenge } from "./ui/challenge";
+import { renderCrash } from "./ui/crash";
 import { focusHeading } from "./ui/dom";
 import { renderHome } from "./ui/home";
 import { hush } from "./ui/japanese";
@@ -19,6 +21,7 @@ import { renderPhrasebook } from "./ui/phrasebook";
 import { renderPractice } from "./ui/practice";
 import { renderReview } from "./ui/review";
 import { refreshVoices, renderSettings } from "./ui/settings";
+import { watchStorage } from "./ui/storage-notice";
 import { renderWelcome } from "./ui/welcome";
 
 interface Page {
@@ -75,21 +78,47 @@ function route(): void {
   const [name = "", ...args] = location.hash.replace(/^#\/?/, "").split("/");
   // hasOwn: the name comes from the URL, and "constructor" must not reach Object.prototype.
   const page = Object.hasOwn(PAGES, name) ? PAGES[name]! : PAGES[""]!;
-  page.render(page.tab ? tabLayout(root, page.tab) : root, args);
-  if (routed) focusHeading(root);
+  try {
+    page.render(page.tab ? tabLayout(root, page.tab) : root, args);
+    if (routed) focusHeading(root);
+  } catch (error) {
+    // A page that throws while drawing would otherwise leave a blank screen.
+    console.error(error);
+    renderCrash(root, error);
+  }
   routed = true;
 }
 
-applySettings();
+/**
+ * Startup work the app can live without. It runs before the first route(),
+ * outside its error screen, so a failure here is logged and the pages still
+ * open rather than leaving a blank screen.
+ */
+function bestEffort(work: () => void): void {
+  try {
+    work();
+  } catch (error) {
+    console.error(error);
+  }
+}
+
+bestEffort(applySettings);
+// Before anything is saved, so the very first refused write is reported.
+watchStorage();
 // The learner's own lines are cards too, so review can ask for them.
-setProfileCards(currentProfile());
+bestEffort(() => setProfileCards(currentProfile()));
+onProfileChange(() => setProfileCards(currentProfile()));
+// The settings page shows the choices themselves: draw it again when another tab changes them.
+onSettingsChange(() => {
+  if (location.hash.startsWith("#/settings")) route();
+});
 // Lessons finished before daily review existed join it as of the day they were finished.
 for (const lesson of LESSONS) {
   const record = progress[lesson.id];
   if (!record) continue;
   const at = new Date(record.at);
   // A hand-edited or corrupt date falls back to now rather than enrolling cards at NaN.
-  introduce(lessonCardIds(lesson), Number.isNaN(at.getTime()) ? new Date() : at);
+  bestEffort(() => introduce(lessonCardIds(lesson), Number.isNaN(at.getTime()) ? new Date() : at));
 }
 // First run: the guide instead of a course map nobody has context for. A deep
 // link (a shared lesson, a bookmark) is never hijacked, and neither is a
@@ -98,6 +127,8 @@ if (!settings.welcomed && Object.keys(progress).length === 0 && /^#?\/?$/.test(l
   // replaceState fires no hashchange, so the guide renders once, by the route() below.
   history.replaceState(null, "", "#/welcome");
 }
+// A learner with a record asks again on each start until the browser agrees; the first visit never asks.
+if (Object.keys(progress).length > 0) void askToPersist();
 onVoicesChanged(refreshVoices);
 window.addEventListener("hashchange", route);
 route();

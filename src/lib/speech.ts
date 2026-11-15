@@ -1,5 +1,4 @@
-import type { Jp } from "../content/types";
-import { plain } from "./jp";
+import { type Jp, plain } from "./jp";
 
 /**
  * Japanese text-to-speech through the browser's Web Speech API. Nothing is
