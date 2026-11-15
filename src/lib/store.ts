@@ -6,6 +6,12 @@
 export interface Store<T> {
   load(): T;
   save(value: T): void;
+  /**
+   * Calls `listener` when another tab of the app writes this store (or clears
+   * storage). Every module that keeps a store in memory reloads it here:
+   * otherwise its next save would overwrite what the other tab wrote.
+   */
+  onExternalChange(listener: () => void): void;
 }
 
 /**
@@ -30,7 +36,30 @@ export function defineStore<T>(
     save(value) {
       write(key, JSON.stringify({ v: version, data: value }));
     },
+    onExternalChange(listener) {
+      // Only browsers have other tabs; tests and Node have no window.
+      if (typeof window === "undefined") return;
+      // The storage event fires in every other tab of the origin, never in the one that wrote.
+      window.addEventListener("storage", (event) => {
+        if (event.storageArea !== localStorage) return;
+        // A null key means the other tab cleared storage altogether.
+        if (event.key === key || event.key === null) listener();
+      });
+    },
   };
+}
+
+let writeFailed = false;
+const failureListeners = new Set<() => void>();
+
+/**
+ * Calls `listener` once storage has refused a write (private browsing, a full
+ * disk): learning still works, but nothing will be remembered, and the learner
+ * should know. A listener added after the failure is called at once.
+ */
+export function onWriteFailure(listener: () => void): void {
+  failureListeners.add(listener);
+  if (writeFailed) listener();
 }
 
 /** `value` as a plain object, or null: the first step of every `parse`. */
@@ -63,6 +92,9 @@ function write(key: string, value: string): void {
   try {
     localStorage.setItem(key, value);
   } catch {
-    // See above.
+    // See above. Said once: every later write fails the same way.
+    if (writeFailed) return;
+    writeFailed = true;
+    for (const listener of failureListeners) listener();
   }
 }

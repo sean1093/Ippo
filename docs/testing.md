@@ -22,6 +22,9 @@ Ippo 是純前端的靜態網站，學習紀錄只存在使用者自己的瀏覽
 |---|---|---|
 | 課程內容寫錯（漏讀音、助詞黏在一起、題目有兩個正確答案） | 學錯、題目無解 | `tests/content.test.ts`、`tests/quiz.test.ts` |
 | 存檔格式改版或被手動改壞 | 進度歸零、整個 App 打不開 | `tests/store.test.ts`、`tests/learn.test.ts`（`parse*`）、`tests/live-stores.test.ts` |
+| 兩個分頁互相覆蓋紀錄、寫入失敗沒人知道、瀏覽器清掉資料 | 學習紀錄無聲無息地消失 | `tests/sync.test.ts`、`e2e/storage.e2e.ts` |
+| 某一頁繪製時丟出例外 | 畫面一片空白 | `e2e/crash.e2e.ts` |
+| import 方向違反分層 | 邏輯層開始依賴畫面，不能在 Node 測試 | `tests/layers.test.ts` |
 | 複習排程錯誤 | 不該出現的卡片一直出現，或該複習的都不出現 | `tests/learn.test.ts`、`tests/interleave.test.ts`、`e2e/practice.e2e.ts`（到期卡片 → 複習 → 重新排程） |
 | 備份檔還原不完整 | 換手機時遺失紀錄 | `tests/backup.test.ts`、`e2e/settings.e2e.ts`（匯出 → 清除 → 匯入） |
 | 語音引擎不回報結束、沒有日文語音 | 「播放全部」卡住、畫面一直顯示播放中 | `tests/speech.test.ts` |
@@ -30,7 +33,7 @@ Ippo 是純前端的靜態網站，學習紀錄只存在使用者自己的瀏覽
 | 一課走不完（步驟卡住、測驗的題目永遠答不完） | 學習中斷 | `e2e/lesson.e2e.ts`、`e2e/practice.e2e.ts` |
 | 新手引導綁架深層連結，或之後又跳出來 | 分享出去的連結打不開 | `e2e/onboarding.e2e.ts` |
 | 「給店員看」蓋住畫面關不掉、橫拿被切掉 | 在店裡最需要的時候不能用 | `e2e/phrasebook.e2e.ts` |
-| Service worker 沒快取到資源 | 在日本沒網路時打不開 | `e2e/offline.e2e.ts` |
+| Service worker 沒快取到資源，或舊版本的檔案一直留在快取 | 在日本沒網路時打不開；快取越來越大 | `e2e/offline.e2e.ts` |
 | 深色模式、字體大小沒有套用或沒存起來 | 戶外看不清楚 | `tests/theme.test.ts`（WCAG AA 對比）、`e2e/settings.e2e.ts` |
 
 ## 端對端測試的寫法

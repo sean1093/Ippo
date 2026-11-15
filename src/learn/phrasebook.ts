@@ -34,6 +34,7 @@ export const STARTER_IDS: readonly string[] = [
 
 const store = defineStore("phrasebook", 1, parsePhrasebook);
 let saved = store.load();
+store.onExternalChange(() => (saved = store.load()));
 
 export function starredIds(): readonly string[] {
   return saved;

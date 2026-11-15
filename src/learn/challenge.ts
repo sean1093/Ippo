@@ -128,6 +128,7 @@ export function parseChallenges(data: unknown): Record<string, ChallengeRecord> 
 
 const store = defineStore("challenges", 1, parseChallenges);
 let records = store.load();
+store.onExternalChange(() => (records = store.load()));
 
 export function resetChallenges(): void {
   records = {};

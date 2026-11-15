@@ -111,6 +111,13 @@ export const settings: Settings = settingsStore.load();
 /** Completed lessons; replaced wholesale by `completeLesson` / `resetProgress`. */
 export let progress: Progress = progressStore.load();
 
+// Another tab's changes win over what this tab loaded at startup; see Store.onExternalChange.
+settingsStore.onExternalChange(() => {
+  Object.assign(settings, settingsStore.load());
+  applySettings();
+});
+progressStore.onExternalChange(() => (progress = progressStore.load()));
+
 /** Set once the first time a theme is applied; 跟隨系統 has to keep following. */
 let systemDark: MediaQueryList | null = null;
 

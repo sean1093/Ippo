@@ -3,6 +3,7 @@ import { localDay, resetMemory } from "../learn/memory";
 import { resetPairs } from "../learn/pairs";
 import { clearResume } from "../learn/resume";
 import { backupSummary, createBackup, readBackup, restoreBackup } from "../lib/backup";
+import { persistence } from "../lib/persist";
 import { japaneseVoices, voiceStatus } from "../lib/speech";
 import {
   progress,
@@ -54,7 +55,7 @@ export function renderSettings(main: HTMLElement): void {
     card("外觀", themeRow(), textSizeRow()),
     card("顯示", romajiRow(), toggle("furigana", "顯示漢字讀音", "在漢字上方用平假名標出讀法。")),
     card("發音", toggle("autoplay", "自動播放", "卡片和題目出現時，自動唸一次。"), rateRow(), voiceHost),
-    card("學習紀錄", backupRow(), resetRow()),
+    card("學習紀錄", persistenceRow(), backupRow(), resetRow()),
     card("新手引導", guideRow()),
     h(
       "p",
@@ -307,6 +308,24 @@ function guideRow(): HTMLElement {
     ),
     icon("next", "h-4 w-4 shrink-0 text-hair"),
   );
+}
+
+/**
+ * Whether the browser will keep the record, said only once it is known: a
+ * browser without the API shows nothing rather than a guess.
+ */
+function persistenceRow(): HTMLElement {
+  const row = h("div", { class: "hidden py-3 text-sm leading-relaxed" });
+  void persistence().then((state) => {
+    if (state === "unsupported") return;
+    row.textContent =
+      state === "persisted"
+        ? "瀏覽器會保留你的學習紀錄。"
+        : "瀏覽器空間不足或很久沒打開時，可能清掉學習紀錄。建議加到主畫面，或定期匯出備份。";
+    row.classList.add(state === "persisted" ? "text-muted" : "text-ink");
+    row.classList.remove("hidden");
+  });
+  return row;
 }
 
 function resetRow(): HTMLElement {

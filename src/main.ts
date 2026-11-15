@@ -2,7 +2,8 @@ import "./style.css";
 import { COURSE, LESSONS } from "./content/course";
 import { lessonCardIds, setProfileCards } from "./learn/cards";
 import { introduce } from "./learn/memory";
-import { currentProfile } from "./learn/profile";
+import { currentProfile, onProfileChange } from "./learn/profile";
+import { askToPersist } from "./lib/persist";
 import { onVoicesChanged } from "./lib/speech";
 import { applySettings, progress, settings } from "./state";
 import { renderChallenge } from "./ui/challenge";
@@ -20,6 +21,7 @@ import { renderPhrasebook } from "./ui/phrasebook";
 import { renderPractice } from "./ui/practice";
 import { renderReview } from "./ui/review";
 import { refreshVoices, renderSettings } from "./ui/settings";
+import { watchStorage } from "./ui/storage-notice";
 import { renderWelcome } from "./ui/welcome";
 
 interface Page {
@@ -88,8 +90,11 @@ function route(): void {
 }
 
 applySettings();
+// Before anything is saved, so the very first refused write is reported.
+watchStorage();
 // The learner's own lines are cards too, so review can ask for them.
 setProfileCards(currentProfile());
+onProfileChange(() => setProfileCards(currentProfile()));
 // Lessons finished before daily review existed join it as of the day they were finished.
 for (const lesson of LESSONS) {
   const record = progress[lesson.id];
@@ -105,6 +110,8 @@ if (!settings.welcomed && Object.keys(progress).length === 0 && /^#?\/?$/.test(l
   // replaceState fires no hashchange, so the guide renders once, by the route() below.
   history.replaceState(null, "", "#/welcome");
 }
+// A learner with a record asks again on each start until the browser agrees; the first visit never asks.
+if (Object.keys(progress).length > 0) void askToPersist();
 onVoicesChanged(refreshVoices);
 window.addEventListener("hashchange", route);
 route();

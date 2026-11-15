@@ -240,6 +240,7 @@ export function mastered(memory: Memory | undefined): boolean {
 
 const store = defineStore("memory", 1, parseMemoryData);
 let memory = store.load();
+store.onExternalChange(() => (memory = store.load()));
 
 export function memoryOf(id: string): Memory | undefined {
   return memory.cards[id];

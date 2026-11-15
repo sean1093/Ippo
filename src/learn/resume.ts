@@ -26,6 +26,7 @@ export function parseResume(data: unknown): ResumePoint | null {
 
 const store = defineStore("resume", 1, parseResume);
 let point = store.load();
+store.onExternalChange(() => (point = store.load()));
 
 /** The saved point, or null once it is too old to be worth offering. */
 export function savedResume(now = Date.now()): ResumePoint | null {
