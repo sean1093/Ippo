@@ -6,6 +6,7 @@ import { currentProfile } from "./learn/profile";
 import { onVoicesChanged } from "./lib/speech";
 import { applySettings, progress, settings } from "./state";
 import { renderChallenge } from "./ui/challenge";
+import { renderCrash } from "./ui/crash";
 import { focusHeading } from "./ui/dom";
 import { renderHome } from "./ui/home";
 import { hush } from "./ui/japanese";
@@ -75,8 +76,14 @@ function route(): void {
   const [name = "", ...args] = location.hash.replace(/^#\/?/, "").split("/");
   // hasOwn: the name comes from the URL, and "constructor" must not reach Object.prototype.
   const page = Object.hasOwn(PAGES, name) ? PAGES[name]! : PAGES[""]!;
-  page.render(page.tab ? tabLayout(root, page.tab) : root, args);
-  if (routed) focusHeading(root);
+  try {
+    page.render(page.tab ? tabLayout(root, page.tab) : root, args);
+    if (routed) focusHeading(root);
+  } catch (error) {
+    // A page that throws while drawing would otherwise leave a blank screen.
+    console.error(error);
+    renderCrash(root, error);
+  }
   routed = true;
 }
 
