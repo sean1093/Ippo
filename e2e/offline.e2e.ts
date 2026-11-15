@@ -21,3 +21,38 @@ test("after one visit the app opens and teaches with no network", async ({ page,
   await expect(page.getByRole("heading", { name: "打招呼" })).toBeVisible();
   await context.setOffline(false);
 });
+
+test("a new build's first load drops the old build's cached assets and keeps working offline", async ({ page, context }) => {
+  await page.goto("./");
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+  });
+  await page.reload();
+  await expect.poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null)).toBe(true);
+
+  // What an earlier deploy leaves behind: hashed files the current index.html no longer names.
+  const cachedAssets = () =>
+    page.evaluate(async () => {
+      const cache = await caches.open("ippo-v1");
+      return (await cache.keys()).map((request) => new URL(request.url).pathname).filter((path) => path.includes("/assets/"));
+    });
+  await page.evaluate(async () => {
+    const cache = await caches.open("ippo-v1");
+    await cache.put("./assets/index-OLDBUILD.js", new Response("// old build"));
+    await cache.put("./assets/index-OLDBUILD.css", new Response("/* old build */"));
+  });
+  expect(await cachedAssets()).toContain("/assets/index-OLDBUILD.js");
+
+  await page.reload();
+  await expect.poll(cachedAssets).not.toContain("/assets/index-OLDBUILD.js");
+  expect(await cachedAssets()).not.toContain("/assets/index-OLDBUILD.css");
+  // The current build's script and stylesheet are kept.
+  const current = await cachedAssets();
+  expect(current.some((path) => path.endsWith(".js"))).toBe(true);
+  expect(current.some((path) => path.endsWith(".css"))).toBe(true);
+
+  await context.setOffline(true);
+  await page.reload();
+  await expect(page.getByRole("link", { name: "第 1 課 日文的聲音" })).toBeVisible();
+  await context.setOffline(false);
+});

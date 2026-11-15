@@ -40,11 +40,11 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET" || new URL(request.url).origin !== self.location.origin) return;
-  event.respondWith(request.mode === "navigate" ? navigation(request) : asset(request));
+  event.respondWith(request.mode === "navigate" ? navigation(request, event) : asset(request));
 });
 
 /** Pages: the network wins when it answers, so a new build is picked up at once. */
-async function navigation(request) {
+async function navigation(request, event) {
   try {
     const response = await fetch(request);
     // A 404 page or a captive portal's answer must never become the offline
@@ -52,11 +52,28 @@ async function navigation(request) {
     if (response.ok && response.type === "basic") {
       const cache = await caches.open(CACHE);
       await cache.put("./index.html", response.clone()).catch(() => {});
+      event.waitUntil(response.clone().text().then((html) => prune(cache, html)).catch(() => {}));
     }
     return response;
   } catch {
     const cached = (await caches.match("./index.html")) ?? (await caches.match("./"));
     return cached ?? Response.error();
+  }
+}
+
+/**
+ * Drops cached build assets the current index.html no longer names. Their file
+ * names carry a content hash, so every deploy adds new ones under the same
+ * CACHE and the old ones would otherwise stay forever. Unhashed files (the
+ * shell, the manifest, icons) are left alone.
+ */
+async function prune(cache, html) {
+  const keep = new Set([...html.matchAll(ASSET_HREF)].map((match) => new URL(match[1], self.registration.scope).href));
+  // An index that names no assets is not a build we know how to read: keep everything.
+  if (keep.size === 0) return;
+  const assets = new URL("./assets/", self.registration.scope).href;
+  for (const request of await cache.keys()) {
+    if (request.url.startsWith(assets) && !keep.has(request.url)) await cache.delete(request);
   }
 }
 

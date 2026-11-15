@@ -203,7 +203,7 @@ src/ui/pairs.ts       聽辨特訓（#/pairs）＋一輪 12 題（#/pairs-quiz/<
 ## 離線使用（PWA）
 
 - `public/manifest.webmanifest` 與 `public/sw.js` 直接複製到 `dist/`，網址全部相對，所以在 GitHub Pages 的子路徑也能用。
-- Service worker 只在 `import.meta.env.PROD` 時由 `src/main.ts` 註冊：安裝時快取 `./`、`./index.html` 和 index 裡面的 `./assets/…`；開頁面走「先連網、連不到就用快取」（只有正常回應才會覆蓋離線用的首頁），其他同源 GET 走「先快取」。改版時把 `sw.js` 裡的 `CACHE` 加一號，activate 時會刪掉其他 `ippo-` 開頭的快取——快取空間是整個網域共用的，同一個 GitHub 帳號的其他專案不能掃到。
+- Service worker 只在 `import.meta.env.PROD` 時由 `src/main.ts` 註冊：安裝時快取 `./`、`./index.html` 和 index 裡面的 `./assets/…`；開頁面走「先連網、連不到就用快取」（只有正常回應才會覆蓋離線用的首頁），其他同源 GET 走「先快取」。每次連網開頁面拿到新的 `index.html` 後，會刪掉快取裡它沒引用到的 `./assets/…`（檔名帶 hash，每次部署都會多一批），所以一般部署不用動 `sw.js`。只有改了快取的規則（例如換了要預先快取的檔案）才把 `CACHE` 加一號，activate 時會刪掉其他 `ippo-` 開頭的快取——快取空間是整個網域共用的，同一個 GitHub 帳號的其他專案不能掃到。
 - 圖示（`icon-192.png`、`icon-512.png`、`icon-maskable-512.png`、`apple-touch-icon.png`）是用無頭瀏覽器把 `public/favicon.svg` 截圖產生的，換圖示時重做一次即可。
 
 ## 測試
