@@ -6,15 +6,27 @@ Ippo 是純前端的靜態網站：沒有後端，學習資料存在瀏覽器的
 
 ```
 src/
+  lib/       與畫面無關的基礎：日文標記、羅馬拼音、語音、聽寫、錄音、儲存、備份
   content/   課程內容與內容檢查（純資料，不碰 DOM）
-  lib/       與畫面無關的基礎：日文標記、羅馬拼音、語音、儲存
   quiz/      出題與測驗流程（純邏輯，可單元測試）
-  ui/        畫面；每個頁面一個模組，共用元件在 dom.ts、japanese.ts、layout.ts
+  learn/     卡片、FSRS 排程、記憶狀態、個人資料與旅行小抄等學習紀錄
   state.ts   設定與課程進度（全域狀態）
-  main.ts    頁面表與路由
+  ui/        畫面；每個頁面一個模組，共用元件在 dom.ts、japanese.ts、layout.ts
+  main.ts    頁面表、路由與啟動
 ```
 
-依賴方向只往下：`ui → quiz → content → lib`。`content`、`lib`、`quiz` 都不 import `ui`，所以能在 Node 裡直接測試。
+依賴方向只往下，每一層只能 import 表裡列出的層：
+
+| 層 | 可以 import |
+|---|---|
+| `ui/`、`main.ts` | 全部 |
+| `learn/` | `quiz/`、`content/`、`lib/` |
+| `quiz/` | `content/`、`lib/` |
+| `content/` | `lib/` |
+| `state.ts` | `lib/` |
+| `lib/` | （無） |
+
+`lib`、`content`、`quiz`、`learn` 都不 import `ui`，所以能在 Node 裡直接測試。這張表由 `tests/layers.test.ts` 強制：一個 import 走錯方向時，`npm test` 會列出檔案、行號和它碰到的層。要改規則就同時改這張表和測試裡的 `ALLOWED`。
 
 ## 擴充點
 
