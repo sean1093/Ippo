@@ -46,6 +46,7 @@ export function isStarred(id: string): boolean {
 
 /** Stars or unstars `id`; returns whether it is now in the phrasebook. */
 export function toggleStar(id: string): boolean {
+  saved = store.latest(saved);
   const at = saved.indexOf(id);
   if (at === -1) saved.push(id);
   else saved.splice(at, 1);

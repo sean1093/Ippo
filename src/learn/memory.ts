@@ -255,17 +255,20 @@ export function kanaMastered(kana: string): boolean {
 /** Records the first answer to a card's question. Ids the course does not teach are ignored. */
 export function answer(id: string, grade: Grade, mode: "say" | "pick", now = new Date()): void {
   if (!CARDS.has(id)) return;
+  memory = store.latest(memory);
   recordAnswer(memory, id, grade, mode, now);
   store.save(memory);
 }
 
 export function introduce(ids: Iterable<string>, at = new Date()): void {
+  memory = store.latest(memory);
   if (introduceCards(memory, [...ids].filter((id) => CARDS.has(id)), at)) store.save(memory);
 }
 
 /** Marks today as a study day, for the streak. */
 export function studied(now = new Date()): void {
   const today = localDay(now);
+  memory = store.latest(memory);
   if (memory.days.at(-1) === today) return;
   memory.days.push(today);
   if (memory.days.length > DAYS_LIMIT) memory.days.splice(0, memory.days.length - DAYS_LIMIT);

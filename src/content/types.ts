@@ -1,6 +1,7 @@
 // Defined in lib, the bottom layer, which must not reach up into content.
-export type { Jp } from "../lib/jp";
 import type { Jp } from "../lib/jp";
+
+export type { Jp };
 
 export interface Example {
   jp: Jp;

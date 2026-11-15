@@ -116,6 +116,11 @@ settingsStore.onExternalChange(() => {
   Object.assign(settings, settingsStore.load());
   applySettings();
 });
+
+/** Calls `listener` after another tab changed the settings, once they are applied here. */
+export function onSettingsChange(listener: () => void): void {
+  settingsStore.onExternalChange(listener);
+}
 progressStore.onExternalChange(() => (progress = progressStore.load()));
 
 /** Set once the first time a theme is applied; 跟隨系統 has to keep following. */
@@ -141,13 +146,15 @@ export function applySettings(): void {
 }
 
 export function updateSettings(patch: Partial<Settings>): void {
-  Object.assign(settings, patch);
+  // Settings is one shared object other modules hold on to: refresh it in place.
+  Object.assign(settings, settingsStore.latest(settings), patch);
   settingsStore.save(settings);
   applySettings();
 }
 
 /** Records a finished lesson, keeping the best score. */
 export function completeLesson(id: string, score: number): void {
+  progress = progressStore.latest(progress);
   progress = { ...progress, [id]: { best: Math.max(score, progress[id]?.best ?? 0), at: new Date().toISOString() } };
   progressStore.save(progress);
 }

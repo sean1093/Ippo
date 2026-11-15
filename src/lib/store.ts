@@ -12,6 +12,13 @@ export interface Store<T> {
    * otherwise its next save would overwrite what the other tab wrote.
    */
   onExternalChange(listener: () => void): void;
+  /**
+   * What to change before a read-modify-write: the saved value, so a write
+   * another tab made a moment ago (whose storage event has not arrived yet) is
+   * built on rather than overwritten. Once storage has refused a write the
+   * saved value is stale, so `current` (what this tab holds) is kept instead.
+   */
+  latest(current: T): T;
 }
 
 /**
@@ -35,6 +42,9 @@ export function defineStore<T>(
     },
     save(value) {
       write(key, JSON.stringify({ v: version, data: value }));
+    },
+    latest(current) {
+      return writeFailed ? current : this.load();
     },
     onExternalChange(listener) {
       // Only browsers have other tabs; tests and Node have no window.

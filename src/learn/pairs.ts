@@ -96,6 +96,7 @@ export function categoryScore(category: string): CategoryScore | undefined {
 }
 
 export function recordPairTrial(category: string, correct: boolean): void {
+  saved = store.latest(saved);
   recordTrial(saved, category, correct);
   store.save(saved);
 }

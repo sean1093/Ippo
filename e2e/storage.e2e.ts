@@ -24,6 +24,17 @@ test.describe("two tabs", () => {
     await expect(other.locator("html")).toHaveAttribute("data-theme", "dark");
     await other.close();
   });
+
+  test("an open settings page shows a choice made in the other tab", async ({ page, context }) => {
+    await page.goto("./#/settings");
+    const other = await context.newPage();
+    await other.goto("./#/settings");
+
+    await page.getByRole("button", { name: "特大", exact: true }).click();
+    await expect(other.getByRole("button", { name: "特大", exact: true })).toHaveAttribute("aria-pressed", "true");
+    await expect(other.getByRole("button", { name: "標準", exact: true })).toHaveAttribute("aria-pressed", "false");
+    await other.close();
+  });
 });
 
 test.describe("storage that refuses to save", () => {
@@ -35,7 +46,7 @@ test.describe("storage that refuses to save", () => {
         throw new DOMException("full", "QuotaExceededError");
       };
     });
-    const alert = page.getByRole("alert").filter({ hasText: "無法保存學習紀錄" });
+    const alert = page.getByRole("alert").filter({ hasText: "沒能保存學習紀錄" });
     await expect(alert).toHaveCount(0);
 
     await page.getByRole("button", { name: "深色", exact: true }).click();
@@ -43,17 +54,27 @@ test.describe("storage that refuses to save", () => {
     // The setting still applies for this visit.
     await expect(page.locator("html")).toHaveAttribute("data-theme", "dark");
 
+    // It sits above the app, not over it: a lesson's leave button stays reachable.
+    // Same page, new hash: a reload would drop the failing storage this test set up.
+    await page.evaluate(() => (location.hash = "#/lesson/greetings"));
+    await page.getByRole("button", { name: "開始學習" }).click();
+    await expect(alert).toBeVisible();
+    await page.getByRole("button", { name: "離開" }).click();
+    await expect(page).toHaveURL(/#\/$/);
+
     await page.getByRole("button", { name: "知道了" }).click();
     await expect(alert).toHaveCount(0);
+    // Later failed writes stay quiet.
+    await page.evaluate(() => (location.hash = "#/settings"));
     await page.getByRole("button", { name: "淺色", exact: true }).click();
-    await page.goto("./#/");
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
     await expect(alert).toHaveCount(0);
   });
 
   test("nothing is shown while saving works", async ({ page }) => {
     await page.goto("./#/settings");
     await page.getByRole("button", { name: "深色", exact: true }).click();
-    await expect(page.getByRole("alert").filter({ hasText: "無法保存學習紀錄" })).toHaveCount(0);
+    await expect(page.getByRole("alert").filter({ hasText: "沒能保存學習紀錄" })).toHaveCount(0);
   });
 });
 
@@ -108,7 +129,11 @@ test.describe("whether the browser keeps the record", () => {
       });
     });
     await page.goto("./");
-    await page.waitForTimeout(500);
+    // Startup asks before the first page is drawn; the settings page's own status
+    // check resolves after it. Once that status shows, a startup request would
+    // already have been made.
+    await page.goto("./#/settings");
+    await expect(page.getByText("建議加到主畫面，或定期匯出備份。")).toBeVisible();
     expect(await page.evaluate(() => (window as unknown as { __persistCalls: string[] }).__persistCalls)).toEqual([]);
   });
 });

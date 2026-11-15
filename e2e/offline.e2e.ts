@@ -40,14 +40,20 @@ test("a new build's first load drops the old build's cached assets and keeps wor
     const cache = await caches.open("ippo-v1");
     await cache.put("./assets/index-OLDBUILD.js", new Response("// old build"));
     await cache.put("./assets/index-OLDBUILD.css", new Response("/* old build */"));
+    // A file only the current stylesheet names, as a font in url() would be: it must stay.
+    const css = (await cache.keys()).find((request) => request.url.endsWith(".css") && !request.url.includes("OLDBUILD"))!;
+    const text = await (await cache.match(css))!.text();
+    await cache.put(css, new Response(`${text}\n/* url(./font-KEEP.woff2) */`, { headers: { "content-type": "text/css" } }));
+    await cache.put("./assets/font-KEEP.woff2", new Response("font"));
   });
   expect(await cachedAssets()).toContain("/assets/index-OLDBUILD.js");
 
   await page.reload();
   await expect.poll(cachedAssets).not.toContain("/assets/index-OLDBUILD.js");
   expect(await cachedAssets()).not.toContain("/assets/index-OLDBUILD.css");
-  // The current build's script and stylesheet are kept.
+  // The current build's script and stylesheet are kept, and what they name.
   const current = await cachedAssets();
+  expect(current).toContain("/assets/font-KEEP.woff2");
   expect(current.some((path) => path.endsWith(".js"))).toBe(true);
   expect(current.some((path) => path.endsWith(".css"))).toBe(true);
 

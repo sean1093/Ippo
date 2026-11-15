@@ -114,6 +114,26 @@ describe("another tab's writes are not overwritten", () => {
   });
 });
 
+describe("a write from another tab whose event has not arrived yet", () => {
+  const KNOWN = "すみません。";
+
+  it("is built on, not overwritten", async () => {
+    const phrasebook = await import("../src/learn/phrasebook");
+    // The other tab saved, but this tab has not heard about it yet.
+    saved.set("ippo.phrasebook", JSON.stringify({ v: 1, data: ["ありがとう ございます。"] }));
+    phrasebook.toggleStar(KNOWN);
+    expect(JSON.parse(saved.get("ippo.phrasebook")!).data).toEqual(["ありがとう ございます。", KNOWN]);
+  });
+
+  it("is not reloaded once storage refuses writes, so this tab's changes are not thrown away", async () => {
+    const phrasebook = await import("../src/learn/phrasebook");
+    refuse = true;
+    phrasebook.toggleStar(KNOWN);
+    phrasebook.toggleStar("ありがとう ございます。");
+    expect(phrasebook.starredIds()).toEqual([KNOWN, "ありがとう ございます。"]);
+  });
+});
+
 describe("onWriteFailure", () => {
   it("reports the first refused write once, also to a listener that comes late", async () => {
     const { defineStore, onWriteFailure } = await import("../src/lib/store");

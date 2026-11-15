@@ -62,18 +62,37 @@ async function navigation(request, event) {
 }
 
 /**
- * Drops cached build assets the current index.html no longer names. Their file
+ * Drops cached build assets the current build no longer uses. Their file
  * names carry a content hash, so every deploy adds new ones under the same
- * CACHE and the old ones would otherwise stay forever. Unhashed files (the
- * shell, the manifest, icons) are left alone.
+ * CACHE and the old ones would otherwise stay forever. "Uses" follows the
+ * references from index.html into the cached scripts and stylesheets, so a
+ * font named in the CSS or a chunk a script imports is kept too. Unhashed
+ * files (the shell, the manifest, icons) are left alone.
  */
 async function prune(cache, html) {
-  const keep = new Set([...html.matchAll(ASSET_HREF)].map((match) => new URL(match[1], self.registration.scope).href));
+  const scope = self.registration.scope;
+  const assets = new URL("./assets/", scope).href;
+  const keep = new Set([...html.matchAll(ASSET_HREF)].map((match) => new URL(match[1], scope).href));
   // An index that names no assets is not a build we know how to read: keep everything.
   if (keep.size === 0) return;
-  const assets = new URL("./assets/", self.registration.scope).href;
-  for (const request of await cache.keys()) {
-    if (request.url.startsWith(assets) && !keep.has(request.url)) await cache.delete(request);
+  const cached = (await cache.keys()).filter((request) => request.url.startsWith(assets));
+  const named = new Set(cached.map((request) => request.url.slice(assets.length)));
+  // Walk outward from the index: each kept script or stylesheet may name more assets.
+  const queue = [...keep];
+  while (queue.length > 0) {
+    const url = queue.pop();
+    if (!/\.(js|css)$/.test(url)) continue;
+    const body = await (await cache.match(url))?.text();
+    for (const name of named) {
+      const href = assets + name;
+      if (!keep.has(href) && body?.includes(name)) {
+        keep.add(href);
+        queue.push(href);
+      }
+    }
+  }
+  for (const request of cached) {
+    if (!keep.has(request.url)) await cache.delete(request);
   }
 }
 
