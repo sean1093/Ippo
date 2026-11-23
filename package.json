@@ -18,7 +18,7 @@
     "typecheck:e2e": "tsc -p e2e"
   },
   "devDependencies": {
-    "@playwright/test": "^1.56.1",
+    "@playwright/test": "^1.65.1",
     "@types/node": "^24.19.2",
     "autoprefixer": "^10.6.1",
     "postcss": "^8.5.29",
