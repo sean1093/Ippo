@@ -19,11 +19,11 @@ export function renderMc(q: Mc, surface: Surface, answered: Answered): void {
   let autoplay: { jp: string; button: HTMLElement } | null = null;
 
   if (q.jp && q.mode === "listen") {
-    const button = speakButton(q.jp, "lg");
+    const button = speakButton(q.jp, "lg", undefined, "播放題目");
     stimulus = h(
       "div",
       { class: "mt-6 flex flex-col items-center" },
-      h("div", { class: "flex items-center gap-3" }, button, slowButton(q.jp)),
+      h("div", { class: "flex items-center gap-3" }, button, slowButton(q.jp, "慢速播放題目")),
       reveal,
     );
     autoplay = { jp: q.jp, button };

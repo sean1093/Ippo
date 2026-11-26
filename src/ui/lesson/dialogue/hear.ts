@@ -12,7 +12,7 @@ import { bubbleRow, type DialogueMode, pill, playAllButton, type Row } from "./s
 export function hearMode(dialogue: Dialogue): DialogueMode {
   const reveals: (() => void)[] = [];
   const rows: Row[] = dialogue.lines.map((line) => {
-    const button = speakButton(line.jp, "sm");
+    const button = speakButton(line.jp, "sm", undefined, `播放${dialogue.cast[line.who]}的這一句`);
     const text = h("div", { class: "min-w-0 flex-1" }, h("p", { class: "text-sm text-muted" }, "先聽聽看"));
     let shown = false;
 
@@ -20,7 +20,13 @@ export function hearMode(dialogue: Dialogue): DialogueMode {
       if (shown) return;
       shown = true;
       fill(text, jpText(line.jp), h("p", { class: "mt-1 text-sm text-ink/75" }, line.zh));
+      // Only when the learner pressed 看文字 here (not "show all"): its button is about to go.
+      const pressed = actions.contains(document.activeElement);
       actions.remove();
+      if (pressed) {
+        text.tabIndex = -1;
+        text.focus({ preventScroll: true });
+      }
     }
 
     const actions = h("div", { class: "mt-2" }, pill("看文字", reveal));

@@ -164,7 +164,7 @@ function segmented<T>(
     buttons.forEach((button, i) => {
       const on = choices[i]?.value === current();
       button.setAttribute("aria-pressed", String(on));
-      button.className = `flex-1 rounded-lg py-2 text-sm font-semibold transition ${on ? "bg-card text-ink shadow-sm" : "text-muted"}`;
+      button.className = `flex-1 rounded-lg py-2 text-sm font-semibold transition ${on ? "bg-card text-ink shadow-sm" : "text-ink/75"}`;
     });
   paint();
   return h(

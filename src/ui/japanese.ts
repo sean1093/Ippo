@@ -32,7 +32,8 @@ export function jpText(markup: Jp, size: keyof typeof SIZES = "md", options: { r
         continue;
       }
       segment.text.split("＿").forEach((part, j) => {
-        if (j > 0) japanese.append(h("span", { class: "blank", "aria-label": "空格" }));
+        // A name on a plain span is never read out: give the gap words of its own.
+        if (j > 0) japanese.append(h("span", { class: "blank" }, h("span", { class: "sr-only" }, "（空格）")));
         if (part) japanese.append(part);
       });
     }
@@ -106,15 +107,26 @@ const SPEAK_SIZES = {
   lg: ["h-16 w-16", "h-7 w-7"],
 } as const;
 
-/** Round speaker button. */
-export function speakButton(markup: Jp, size: keyof typeof SPEAK_SIZES = "md", options?: SpeakOptions): HTMLButtonElement {
+/**
+ * Round speaker button. Its name says what it plays; pass `label` where the
+ * text is the answer being asked for (a listening question), so a screen
+ * reader or voice control doesn't give it away.
+ */
+export function speakButton(
+  markup: Jp,
+  size: keyof typeof SPEAK_SIZES = "md",
+  options?: SpeakOptions,
+  label = `播放「${plain(markup)}」`,
+): HTMLButtonElement {
   const [box, glyph] = SPEAK_SIZES[size];
   const button = h(
     "button",
     {
       type: "button",
       class: `inline-flex shrink-0 items-center justify-center rounded-full bg-ai-soft text-ai transition active:scale-95 ${box}`,
-      "aria-label": `播放「${plain(markup)}」`,
+      "aria-label": label,
+      // What it plays, for tests; unlike the label, never read out.
+      "data-say": plain(markup),
     },
     icon("speaker", glyph),
   );
@@ -125,15 +137,15 @@ export function speakButton(markup: Jp, size: keyof typeof SPEAK_SIZES = "md", o
   return button;
 }
 
-/** Pill button that plays `markup` slowly. */
-export function slowButton(markup: Jp): HTMLButtonElement {
+/** Pill button that plays `markup` slowly; `label` as for `speakButton`. */
+export function slowButton(markup: Jp, label = `慢速播放「${plain(markup)}」`): HTMLButtonElement {
   const button = h(
     "button",
     {
       type: "button",
       class:
         "inline-flex h-11 items-center gap-1.5 rounded-full bg-card px-4 text-sm font-semibold text-ai ring-1 ring-hair transition active:scale-95",
-      "aria-label": `慢速播放「${plain(markup)}」`,
+      "aria-label": label,
     },
     icon("speaker", "h-4 w-4"),
     "慢速",

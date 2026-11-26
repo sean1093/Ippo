@@ -69,6 +69,7 @@ const PAGES: Record<string, Page> = {
 };
 
 const root = document.getElementById("app") as HTMLElement;
+const TITLE = document.title;
 /** The first render is the page the learner opened: moving focus there would be noise. */
 let routed = false;
 
@@ -80,6 +81,9 @@ function route(): void {
   const page = Object.hasOwn(PAGES, name) ? PAGES[name]! : PAGES[""]!;
   try {
     page.render(page.tab ? tabLayout(root, page.tab) : root, args);
+    // Each page is named after its heading, so a screen reader and the tab switcher can tell them apart.
+    const heading = root.querySelector("h1")?.textContent?.trim();
+    document.title = name && heading ? `${heading} · ${TITLE}` : TITLE;
     if (routed) focusHeading(root);
   } catch (error) {
     // A page that throws while drawing would otherwise leave a blank screen.

@@ -44,6 +44,9 @@ export function renderRecall(q: Recall, surface: Surface, answered: Answered): v
         ),
       ),
     );
+    // 看答案 is gone with the old footer: put focus on the answer it revealed.
+    answer.tabIndex = -1;
+    answer.focus({ preventScroll: true });
     if (shouldAutoplay()) void play(q.jp, speaker);
   }
 

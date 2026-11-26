@@ -136,7 +136,8 @@ export async function solveDrill(page: Page, maxQuestions = 200): Promise<void> 
     const key = await page.evaluate(() => {
       const main = document.querySelector("main")!.cloneNode(true) as HTMLElement;
       for (const options of main.querySelectorAll(".grid, [data-no-swipe]")) options.remove();
-      const labels = [...main.querySelectorAll("[aria-label]")].map((el) => el.getAttribute("aria-label"));
+      // A listening question's speaker is labelled 「播放題目」 so as not to give the answer away; what it plays tells questions apart.
+      const labels = [...main.querySelectorAll("[aria-label], [data-say]")].map((el) => el.getAttribute("data-say") ?? el.getAttribute("aria-label"));
       return JSON.stringify([main.textContent, labels]);
     });
 

@@ -52,7 +52,7 @@ function kanaStep(kana: readonly string[]): StepView {
     el: h(
       "div",
       { class: "pop" },
-      h("p", { class: LABEL }, "這課的新假名"),
+      h("h2", { class: LABEL }, "這課的新假名"),
       h("p", { class: "mt-2 leading-relaxed" }, "這課會用到的新假名，點一下聽聽看"),
       h(
         "div",
@@ -75,7 +75,7 @@ function wordStep(word: Word, n: number, count: number): StepView {
     el: h(
       "div",
       { class: "pop" },
-      h("p", { class: LABEL }, `單字 ${n + 1} / ${count}`),
+      h("h2", { class: LABEL }, `單字 ${n + 1} / ${count}`),
       h(
         "div",
         { class: "mt-3 rounded-3xl bg-card px-5 py-8 text-center shadow-sm ring-1 ring-hair" },
@@ -110,7 +110,7 @@ function patternStep(pattern: Pattern, n: number, count: number): StepView {
     el: h(
       "div",
       { class: "pop" },
-      h("p", { class: LABEL }, `句型 ${n + 1} / ${count}`),
+      h("h2", { class: LABEL }, `句型 ${n + 1} / ${count}`),
       h(
         "div",
         { class: "mt-3 rounded-3xl bg-ai px-5 py-6 text-on-accent shadow-sm" },

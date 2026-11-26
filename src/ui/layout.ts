@@ -74,13 +74,13 @@ export interface FocusLayout {
 /** Full-screen learning layout: close button and progress bar on top, actions at the bottom. */
 export function focusLayout(root: HTMLElement, onClose: () => void): FocusLayout {
   const fill = h("div", { class: "h-full rounded-full bg-ok transition-[width] duration-500", style: "width: 0%" });
-  const bar = h("div", { class: "h-3 flex-1 overflow-hidden rounded-full bg-hair", role: "progressbar", "aria-valuemin": 0, "aria-valuemax": 100, "aria-valuenow": 0 }, fill);
+  const bar = h("div", { class: "h-3 flex-1 overflow-hidden rounded-full bg-hair", role: "progressbar", "aria-label": "進度", "aria-valuemin": 0, "aria-valuemax": 100, "aria-valuenow": 0 }, fill);
   const header = h(
     "header",
     { class: "pt-safe sticky top-0 z-10 flex items-center gap-3 bg-paper/95 px-4 pb-3 backdrop-blur" },
     h(
       "button",
-      { type: "button", class: "-ml-1 rounded-full p-2 text-muted active:bg-hair", "aria-label": "離開", onclick: onClose },
+      { type: "button", class: "-ml-1.5 rounded-full p-2.5 text-muted active:bg-hair", "aria-label": "離開", onclick: onClose },
       icon("close", "h-6 w-6"),
     ),
     bar,
@@ -104,8 +104,8 @@ export function stars(score: number, size = "h-4 w-4"): HTMLElement {
   const earned = score >= 90 ? 3 : score >= 70 ? 2 : 1;
   return h(
     "span",
-    { class: "flex gap-0.5", "aria-label": `${earned} 顆星` },
-    [0, 1, 2].map((i) => icon("star", `${size} ${i < earned ? "fill-current text-amber-400" : "text-hair"}`)),
+    { class: "flex gap-0.5", role: "img", "aria-label": `${earned} 顆星` },
+    [0, 1, 2].map((i) => icon("star", `${size} ${i < earned ? "star-earned fill-current" : "text-muted"}`)),
   );
 }
 
