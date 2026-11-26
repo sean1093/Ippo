@@ -252,7 +252,13 @@ function backupRow(): HTMLElement {
 async function exportBackup(say: (text: string, bad?: boolean) => void): Promise<void> {
   const now = new Date();
   const name = `ippo-backup-${localDay(now)}.json`;
-  const file = new File([JSON.stringify(createBackup(localStorage, now))], name, { type: "application/json" });
+  let file: File;
+  try {
+    file = new File([JSON.stringify(createBackup(localStorage, now))], name, { type: "application/json" });
+  } catch {
+    say("這個瀏覽器不讓網頁讀取儲存的資料，沒辦法匯出備份。", true);
+    return;
+  }
   // On a phone, sharing keeps the file inside the phone's own flow (AirDrop,
   // 雲端硬碟, 儲存到檔案) — iOS Safari has no visible Downloads folder. A
   // computer's share menu has no "save", so there the download is the way.
@@ -291,7 +297,12 @@ async function importBackup(file: File, say: (text: string, bad?: boolean) => vo
     say("已取消匯入。");
     return;
   }
-  restoreBackup(localStorage, backup);
+  try {
+    restoreBackup(localStorage, backup);
+  } catch (error) {
+    say(error instanceof Error ? error.message : "匯入失敗。", true);
+    return;
+  }
   // Everything in memory was loaded from storage at startup; reload to pick up the restored data.
   location.reload();
 }

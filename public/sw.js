@@ -1,8 +1,9 @@
 /**
  * Offline cache for Ippo. The whole app is static, so the rules are simple:
- * a page load prefers the network and falls back to the cached shell, and
- * every other same-origin GET is served from the cache first. Bump CACHE to
- * ship a new build; the old cache is dropped on activate.
+ * a page load prefers the network and falls back to the cached shell when the
+ * network fails or is slow, and every other same-origin GET is served from the
+ * cache first. Hashed build assets are pruned as new builds arrive (see
+ * `prune`); bumping CACHE drops everything on activate.
  *
  * All URLs are relative to the service worker's own scope, so the site works
  * from a GitHub Pages subpath as well as from the domain root.
@@ -40,25 +41,71 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   const { request } = event;
   if (request.method !== "GET" || new URL(request.url).origin !== self.location.origin) return;
-  event.respondWith(request.mode === "navigate" ? navigation(request, event) : asset(request));
+  event.respondWith(request.mode === "navigate" ? navigation(request, event) : asset(request, event));
 });
 
-/** Pages: the network wins when it answers, so a new build is picked up at once. */
-async function navigation(request, event) {
-  try {
-    const response = await fetch(request);
-    // A 404 page or a captive portal's answer must never become the offline
-    // shell, and a cache that refuses the write must not cost a good response.
-    if (response.ok && response.type === "basic") {
-      const cache = await caches.open(CACHE);
-      await cache.put("./index.html", response.clone()).catch(() => {});
-      event.waitUntil(response.clone().text().then((html) => prune(cache, html)).catch(() => {}));
-    }
-    return response;
-  } catch {
-    const cached = (await caches.match("./index.html")) ?? (await caches.match("./"));
-    return cached ?? Response.error();
-  }
+/** How long a page load waits for the network before opening the cached app. */
+const NETWORK_TIMEOUT = 3000;
+
+/**
+ * Pages: the network wins when it answers in time, so a new build is picked
+ * up at once. Station Wi-Fi or a captive portal that never answers must not
+ * leave a white screen while a whole app sits in the cache: after
+ * NETWORK_TIMEOUT, or on any error or non-ok answer, the cached shell opens,
+ * and a late answer still updates the cache for next time.
+ */
+function navigation(request, event) {
+  let settle;
+  event.waitUntil(new Promise((resolve) => (settle = resolve)));
+  const network = fetch(request).then(
+    (response) => {
+      settle(isShell(request, response) ? update(response.clone()).catch(() => {}) : undefined);
+      return response;
+    },
+    (error) => {
+      settle();
+      throw error;
+    },
+  );
+  return respond(network);
+}
+
+async function respond(network) {
+  const cached = (await caches.match("./index.html")) ?? (await caches.match("./"));
+  // The first visit has nothing to fall back to: wait for the network however long it takes.
+  if (!cached) return network.catch(() => Response.error());
+  const timeout = new Promise((resolve) => setTimeout(resolve, NETWORK_TIMEOUT, null));
+  const response = await Promise.race([network.catch(() => null), timeout]);
+  return response?.ok ? response : cached;
+}
+
+/**
+ * Only the app's own index may become the offline shell: never a 404 page, a
+ * captive portal's answer, or the manifest or an icon opened in the address bar.
+ */
+function isShell(request, response) {
+  if (!response.ok || response.type !== "basic") return false;
+  if (!(response.headers.get("content-type") ?? "").includes("text/html")) return false;
+  const url = request.url.split(/[?#]/)[0];
+  const scope = self.registration.scope;
+  return url === scope || url === `${scope}index.html`;
+}
+
+/**
+ * Switches the offline shell to a new build only once every script and
+ * stylesheet it names is cached: a deploy loaded over a flaky connection must
+ * not leave a new index whose assets never arrived, with the old build's
+ * already pruned. Hashed files never change, so ones already cached are kept.
+ */
+async function update(response) {
+  const cache = await caches.open(CACHE);
+  const html = await response.clone().text();
+  const assets = [...html.matchAll(ASSET_HREF)].map((match) => match[1]);
+  const missing = [];
+  for (const url of assets) if (!(await cache.match(url))) missing.push(url);
+  await Promise.all(missing.map((url) => cache.add(url)));
+  await cache.put("./index.html", response);
+  await prune(cache, html);
 }
 
 /**
@@ -96,14 +143,24 @@ async function prune(cache, html) {
   }
 }
 
-/** Everything else: the cache wins, and anything new is kept for next time. */
-async function asset(request) {
+/**
+ * Everything else: the cache wins, and anything new is kept for next time.
+ * Files without a content hash (the manifest, icons) can change under the
+ * same name, so a cached one is refreshed in the background.
+ */
+async function asset(request, event) {
   const cached = await caches.match(request);
-  if (cached) return cached;
-  const response = await fetch(request);
-  if (response.ok && response.type === "basic") {
-    const cache = await caches.open(CACHE);
-    await cache.put(request, response.clone());
+  const save = async (response) => {
+    if (response.ok && response.type === "basic") {
+      const cache = await caches.open(CACHE);
+      await cache.put(request, response.clone());
+    }
+    return response;
+  };
+  if (cached) {
+    const hashed = request.url.startsWith(new URL("./assets/", self.registration.scope).href);
+    if (!hashed) event.waitUntil(fetch(request).then(save).catch(() => {}));
+    return cached;
   }
-  return response;
+  return save(await fetch(request));
 }

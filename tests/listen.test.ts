@@ -14,6 +14,7 @@ class FakeRecognition {
   onresult: ((event: unknown) => void) | null = null;
   onerror: ((event: { error: string }) => void) | null = null;
   onend: (() => void) | null = null;
+  onaudiostart: (() => void) | null = null;
   constructor() {
     FakeRecognition.last = this;
   }
@@ -86,11 +87,31 @@ describe("recognize", () => {
 
   it("stops waiting after the timeout and releases the microphone", async () => {
     const heard = recognize(3000);
+    engine().onaudiostart?.();
     await vi.advanceTimersByTimeAsync(2999);
     expect(engine().aborted).toBe(false);
     await vi.advanceTimersByTimeAsync(1);
     expect(engine().aborted).toBe(true);
     // The abort's own error event arrives first; either way it is not a result.
+    await expect(heard).resolves.toHaveProperty("error");
+  });
+
+  it("does not count time spent on the permission prompt as silence", async () => {
+    const heard = recognize(3000);
+    // The learner reads the microphone prompt for 10 seconds, then allows it.
+    await vi.advanceTimersByTimeAsync(10_000);
+    expect(engine().aborted).toBe(false);
+    engine().onaudiostart?.();
+    await vi.advanceTimersByTimeAsync(2999);
+    expect(engine().aborted).toBe(false);
+    engine().hear("はい");
+    await expect(heard).resolves.toEqual({ alternatives: ["はい"] });
+  });
+
+  it("gives up if the microphone never opens", async () => {
+    const heard = recognize(3000);
+    await vi.advanceTimersByTimeAsync(30_000);
+    expect(engine().aborted).toBe(true);
     await expect(heard).resolves.toHaveProperty("error");
   });
 
