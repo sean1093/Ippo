@@ -74,20 +74,46 @@ export function mc(fields: Omit<Mc, "kind" | "options" | "answer">, answer: Opti
   return { kind: "mc", ...fields, options, answer: options.indexOf(answer) };
 }
 
-/** Up to three candidates that differ from `item` and from each other in both meaning and sound. */
+/**
+ * Up to three candidates that differ from `item` and from each other in both
+ * meaning and sound. One that merely wraps another — 「不好意思，這是什麼？」
+ * next to 「這是什麼？」 — is skipped too: telling those apart tests spotting
+ * an extra word, not understanding, and the longer one is the obvious odd one out.
+ */
 export function decoys<T extends { jp: Jp; zh: string }>(item: T, candidates: readonly T[]): T[] {
-  const glosses = new Set([item.zh]);
-  const sounds = new Set([readings(item.jp).join("")]);
+  const glosses = [gloss(item.zh)];
+  const sounds = [readings(item.jp).join("")];
   const out: T[] = [];
   for (const other of candidates) {
+    const meaning = gloss(other.zh);
     const sound = readings(other.jp).join("");
-    if (glosses.has(other.zh) || sounds.has(sound)) continue;
-    glosses.add(other.zh);
-    sounds.add(sound);
+    if (glosses.some((seen) => overlaps(seen, meaning, CJK)) || sounds.some((seen) => overlaps(seen, sound, LONG))) continue;
+    glosses.push(meaning);
+    sounds.push(sound);
     out.push(other);
     if (out.length === 3) break;
   }
   return out;
+}
+
+/** A Chinese gloss without its punctuation, so 「早安。」 and 「早安」 compare equal. */
+function gloss(zh: string): string {
+  return zh.replace(/[\s。、，,.!?！？「」『』…~～]/g, "");
+}
+
+const CJK = /\p{Script=Han}/u;
+/** Kana sounds this long or longer are phrases; shorter ones (し／しゃ) are kana worth telling apart. */
+const LONG = /^.{3,}$/u;
+
+/**
+ * Equal, or one contains the other where `phrase` matches one of them.
+ * Romaji glosses of kana (su／tsu) and lone kana (し／しゃ) are real
+ * contrasts to practise, so only phrases count as wrapping each other.
+ */
+function overlaps(a: string, b: string, phrase: RegExp): boolean {
+  if (a === b) return true;
+  if (!phrase.test(a) && !phrase.test(b)) return false;
+  return a.includes(b) || b.includes(a);
 }
 
 /**

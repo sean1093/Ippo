@@ -7,7 +7,7 @@ import type { Answered, Surface } from "./shared";
 
 const GRADES: { grade: Grade; label: string; class: string }[] = [
   { grade: "again", label: "不會", class: `${BUTTON.secondary} text-ng` },
-  { grade: "hard", label: "差一點", class: BUTTON.secondary },
+  { grade: "hard", label: "想了一下", class: BUTTON.secondary },
   { grade: "good", label: "會", class: BUTTON.ok },
 ];
 

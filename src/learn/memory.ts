@@ -203,8 +203,10 @@ export function computeStats(data: MemoryData, catalog: Catalog, now: Date): Sta
     if (!card) continue;
     learned += 1;
     // Right after any answer the model says "remembered" — even after a miss — so a miss
-    // keeps the word out until it is answered right again.
-    if (card.kind === "word" && memory.grade !== "again" && recallProbability(memory, now) >= 0.9) wordsKnown += 1;
+    // keeps the word out until it is answered right again, and a word only
+    // seen in a lesson (never asked) is not counted until it is answered.
+    const answered = memory.grade !== null && memory.grade !== "again";
+    if (card.kind === "word" && answered && recallProbability(memory, now) >= 0.9) wordsKnown += 1;
     if (memory.said === "good" || memory.said === "hard") said += 1;
   }
 
@@ -265,14 +267,34 @@ export function introduce(ids: Iterable<string>, at = new Date()): void {
   if (introduceCards(memory, [...ids].filter((id) => CARDS.has(id)), at)) store.save(memory);
 }
 
-/** Marks today as a study day, for the streak. */
+/**
+ * Marks a study day, for the streak: the day the session started, so a
+ * review begun at 23:55 and finished at 00:05 counts for the evening it
+ * belongs to instead of breaking the streak.
+ */
 export function studied(now = new Date()): void {
-  const today = localDay(now);
   memory = store.latest(memory);
-  if (memory.days.at(-1) === today) return;
-  memory.days.push(today);
+  const day = localDay(new Date(sessionStart(memory.log, now.getTime())));
+  if (memory.days.includes(day)) return;
+  memory.days.push(day);
+  memory.days.sort();
   if (memory.days.length > DAYS_LIMIT) memory.days.splice(0, memory.days.length - DAYS_LIMIT);
   store.save(memory);
+}
+
+/** Answers this close together belong to one sitting. */
+const SESSION_GAP = 10 * 60 * 1000;
+
+/** When the sitting that ends at `end` began, judging by its answers. */
+function sessionStart(log: readonly ReviewEvent[], end: number): number {
+  let start = end;
+  for (let i = log.length - 1; i >= 0; i -= 1) {
+    const at = log[i]!.at;
+    if (at > start) continue;
+    if (start - at > SESSION_GAP) break;
+    start = at;
+  }
+  return start;
 }
 
 /** Whether any card was answered today. */

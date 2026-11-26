@@ -159,6 +159,12 @@ describe("computeStats", () => {
     recordAnswer(data, "w", "again", "pick", at(3));
     expect(computeStats(data, cards, at(3, 1)).wordsKnown).toBe(0);
   });
+
+  it("does not count a word that was only introduced, never asked", () => {
+    const data = empty();
+    introduceCards(data, ["w"], T0);
+    expect(computeStats(data, cards, T0).wordsKnown).toBe(0);
+  });
 });
 
 describe("cards", () => {
