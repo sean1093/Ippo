@@ -12,6 +12,13 @@ const CACHE = "ippo-v1";
 const SHELL = ["./", "./index.html"];
 /** Hashed assets referenced by index.html; see `precache`. */
 const ASSET_HREF = /(?:src|href)="(\.\/assets\/[^"]+)"/g;
+/**
+ * Every file here is static and same-origin, but a server may still answer
+ * `Vary: Origin` (vite preview does). A module script's request carries an
+ * Origin header and `cache.add(url)` doesn't, so honouring Vary would make
+ * the same file look missing depending on who stored it.
+ */
+const MATCH = { ignoreVary: true };
 
 self.addEventListener("install", (event) => {
   event.waitUntil(precache().then(() => self.skipWaiting()));
@@ -22,7 +29,7 @@ async function precache() {
   await cache.addAll(SHELL);
   // Caching the script and stylesheet the shell names makes the very first
   // visit enough to go offline, without a build step that knows their hashes.
-  const html = await (await cache.match("./index.html"))?.text();
+  const html = await (await cache.match("./index.html", MATCH))?.text();
   const assets = [...(html ?? "").matchAll(ASSET_HREF)].map((match) => match[1]);
   await Promise.allSettled(assets.map((url) => cache.add(url)));
 }
@@ -71,7 +78,7 @@ function navigation(request, event) {
 }
 
 async function respond(network) {
-  const cached = (await caches.match("./index.html")) ?? (await caches.match("./"));
+  const cached = (await caches.match("./index.html", MATCH)) ?? (await caches.match("./", MATCH));
   // The first visit has nothing to fall back to: wait for the network however long it takes.
   if (!cached) return network.catch(() => Response.error());
   const timeout = new Promise((resolve) => setTimeout(resolve, NETWORK_TIMEOUT, null));
@@ -102,7 +109,7 @@ async function update(response) {
   const html = await response.clone().text();
   const assets = [...html.matchAll(ASSET_HREF)].map((match) => match[1]);
   const missing = [];
-  for (const url of assets) if (!(await cache.match(url))) missing.push(url);
+  for (const url of assets) if (!(await cache.match(url, MATCH))) missing.push(url);
   await Promise.all(missing.map((url) => cache.add(url)));
   await cache.put("./index.html", response);
   await prune(cache, html);
@@ -129,7 +136,7 @@ async function prune(cache, html) {
   while (queue.length > 0) {
     const url = queue.pop();
     if (!/\.(js|css)$/.test(url)) continue;
-    const body = await (await cache.match(url))?.text();
+    const body = await (await cache.match(url, MATCH))?.text();
     for (const name of named) {
       const href = assets + name;
       if (!keep.has(href) && body?.includes(name)) {
@@ -149,7 +156,7 @@ async function prune(cache, html) {
  * same name, so a cached one is refreshed in the background.
  */
 async function asset(request, event) {
-  const cached = await caches.match(request);
+  const cached = await caches.match(request, MATCH);
   const save = async (response) => {
     if (response.ok && response.type === "basic") {
       const cache = await caches.open(CACHE);
