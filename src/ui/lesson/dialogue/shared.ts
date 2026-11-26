@@ -89,7 +89,7 @@ export function pill(label: string, onClick: () => void, glyph?: Parameters<type
     {
       type: "button",
       class:
-        "inline-flex h-9 items-center gap-1.5 rounded-full bg-card px-3 text-sm font-semibold text-ai ring-1 ring-hair transition active:scale-95",
+        "hit inline-flex h-9 items-center gap-1.5 rounded-full bg-card px-3 text-sm font-semibold text-ai ring-1 ring-hair transition active:scale-95",
       onclick: onClick,
     },
     glyph && icon(glyph, "h-4 w-4"),

@@ -37,7 +37,7 @@ export function renderKana(main: HTMLElement, script: Script): void {
       "a",
       {
         href: `#/kana/${id}`,
-        class: `flex-1 rounded-lg py-2 text-center text-sm font-semibold transition ${
+        class: `flex-1 rounded-lg py-3 text-center text-sm font-semibold transition ${
           id === script ? "bg-card text-ink shadow-sm" : "text-ink/75"
         }`,
         "aria-current": id === script && "page",
@@ -66,7 +66,7 @@ export function renderKana(main: HTMLElement, script: Script): void {
             "a",
             {
               href: `#/kana-quiz/${script}/${section.id}`,
-              class: "shrink-0 rounded-full bg-ai-soft px-3.5 py-1.5 text-sm font-semibold text-ai active:scale-95",
+              class: "hit shrink-0 rounded-full bg-ai-soft px-3.5 py-1.5 text-sm font-semibold text-ai active:scale-95",
             },
             "小測驗",
           ),

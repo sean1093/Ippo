@@ -148,3 +148,58 @@ describe("stopSpeaking", () => {
     expect(synth.cancel).not.toHaveBeenCalled();
   });
 });
+
+describe("interrupting on WebKit", () => {
+  const IPHONE = "Mozilla/5.0 (iPhone; CPU iPhone OS 18_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/18.0 Mobile/15E148 Safari/604.1";
+  const CHROME = "Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Mobile Safari/537.36";
+
+  async function interrupt(userAgent: string) {
+    const { synth, spoken } = install([voice("Kyoko")], { silent: true });
+    vi.stubGlobal("navigator", { userAgent });
+    const { speak, stopSpeaking } = await load();
+    void speak("はし");
+    void speak("はし", { rate: 0.6 });
+    return { synth, spoken, speak, stopSpeaking };
+  }
+
+  it("leaves a pause after cancel() on iOS before speaking, so the new line isn't dropped", async () => {
+    const { synth, spoken } = await interrupt(IPHONE);
+    expect(synth.cancel).toHaveBeenCalledOnce();
+    expect(spoken).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(spoken).toHaveLength(2);
+    expect(spoken[1]!.rate).toBe(0.6);
+  });
+
+  it("speaks at once elsewhere", async () => {
+    const { spoken } = await interrupt(CHROME);
+    expect(spoken).toHaveLength(2);
+  });
+
+  it("drops the pending line if something else stops it during the pause", async () => {
+    const { spoken, stopSpeaking } = await interrupt(IPHONE);
+    stopSpeaking();
+    await vi.advanceTimersByTimeAsync(100);
+    expect(spoken).toHaveLength(1);
+  });
+
+  it("also pauses when something else cancelled just before (a step change hushes, then autoplays)", async () => {
+    const { spoken } = install([voice("Kyoko")], { silent: true });
+    vi.stubGlobal("navigator", { userAgent: IPHONE });
+    const { speak, stopSpeaking } = await load();
+    void speak("はし");
+    stopSpeaking();
+    void speak("あめ");
+    expect(spoken).toHaveLength(1);
+    await vi.advanceTimersByTimeAsync(100);
+    expect(spoken.map((u) => u.text)).toEqual(["はし", "あめ"]);
+  });
+
+  it("doesn't pause when nothing was playing", async () => {
+    const { spoken } = install([voice("Kyoko")], { silent: true });
+    vi.stubGlobal("navigator", { userAgent: IPHONE });
+    const { speak } = await load();
+    void speak("はし");
+    expect(spoken).toHaveLength(1);
+  });
+});

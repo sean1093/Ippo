@@ -66,7 +66,7 @@ export function pauseRow(kind: Pause, onChange: () => void): HTMLElement {
               new Date(settings[FIELD[kind]]).toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit", hour12: false }),
             ),
           ),
-          h("button", { type: "button", class: "shrink-0 font-semibold text-ai", onclick: () => set(0) }, "取消"),
+          h("button", { type: "button", class: "hit shrink-0 px-1 font-semibold text-ai", onclick: () => set(0) }, "取消"),
         ),
       );
       return;
@@ -77,7 +77,7 @@ export function pauseRow(kind: Pause, onChange: () => void): HTMLElement {
         "button",
         {
           type: "button",
-          class: "h-9 rounded-full bg-card px-3 text-sm font-semibold text-muted ring-1 ring-hair active:scale-95",
+          class: "hit h-9 rounded-full bg-card px-3 text-sm font-semibold text-muted ring-1 ring-hair active:scale-95",
           onclick: () => set(Date.now() + HOUR),
         },
         LABELS[kind].off,

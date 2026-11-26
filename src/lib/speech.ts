@@ -27,6 +27,20 @@ let preferredVoice: string | null = null;
 let defaultRate = 1;
 let active: { utterance: SpeechSynthesisUtterance; finish: () => void } | null = null;
 
+/**
+ * WebKit (Safari, and every browser on iOS) can drop an utterance queued in
+ * the same task as `cancel()`: tapping 慢速 or another line while one plays
+ * then played nothing. After a cancel, WebKit gets this much of a pause first.
+ */
+const WEBKIT_RESTART_MS = 60;
+/** When `cancel()` last cut something off — by `speak` itself or by a `hush` just before it. */
+let cancelledAt = Number.NEGATIVE_INFINITY;
+
+function isWebKit(): boolean {
+  const ua = typeof navigator === "undefined" ? "" : navigator.userAgent;
+  return /AppleWebKit/.test(ua) && !/Chrome\/|Chromium\/|Android/.test(ua);
+}
+
 export function configureSpeech(options: { voice: string | null; rate: number }): void {
   preferredVoice = options.voice;
   defaultRate = options.rate;
@@ -107,14 +121,29 @@ export function speak(markup: Jp, options: SpeakOptions = {}): Promise<void> {
   utterance.onerror = finish;
   // Kept referenced until it ends: Chrome drops `end` for garbage-collected utterances.
   active = { utterance, finish };
-  synth.speak(utterance);
+  const wait = cancelledAt + WEBKIT_RESTART_MS - Date.now();
+  if (wait > 0 && isWebKit()) {
+    const engine = synth;
+    // Spoken only if nothing replaced or stopped it during the pause.
+    window.setTimeout(() => {
+      if (active?.utterance === utterance) engine.speak(utterance);
+    }, wait);
+  } else {
+    synth.speak(utterance);
+  }
   return promise;
 }
 
-export function stopSpeaking(): void {
+/** Stops whatever is playing; true when something was actually cut off. */
+export function stopSpeaking(): boolean {
   const current = active;
   active = null;
   // Cancelling an idle engine can swallow the next utterance on iOS.
-  if (synth && (synth.speaking || synth.pending)) synth.cancel();
+  const busy = Boolean(synth && (synth.speaking || synth.pending));
+  if (busy) {
+    synth!.cancel();
+    cancelledAt = Date.now();
+  }
   current?.finish();
+  return busy;
 }

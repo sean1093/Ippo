@@ -1,3 +1,4 @@
+import { confusables } from "../content/confusables";
 import { KATAKANA } from "../content/kana-progression";
 import { type Rng, shuffle } from "../quiz/drill";
 import { type Ask, decoys, mc, type Question } from "../quiz/questions";
@@ -74,7 +75,13 @@ function kanaQuestion(card: Card, stage: Stage, pool: Iterable<Card>, rng: Rng):
   const peers = [...pool].filter((other) => other.kind === "kana" && other.id !== card.id);
   const sameScript = peers.filter((other) => KATAKANA.test(other.jp) === katakana);
   const elsewhere = peers.filter((other) => KATAKANA.test(other.jp) !== katakana);
-  const others = decoys(card, [...shuffle(sameScript, rng), ...shuffle(elsewhere, rng)]);
+  // Look- and sound-alikes first (シ for ツ, が for か): those are what a learner actually mixes up.
+  const alike = new Set(confusables(card.jp));
+  const lookalikes = shuffle(
+    peers.filter((other) => alike.has(other.jp)),
+    rng,
+  ).slice(0, 2);
+  const others = decoys(card, [...lookalikes, ...shuffle(sameScript, rng), ...shuffle(elsewhere, rng)]);
   if (stage === "recognize") {
     return mc(
       { prompt: "這個假名怎麼唸？", jp: card.jp, mode: "read", say: card.jp, card: card.id },

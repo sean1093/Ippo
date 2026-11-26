@@ -61,7 +61,7 @@ export function renderWelcome(root: HTMLElement): void {
               "button",
               {
                 type: "button",
-                class: "w-16 py-2 text-left text-sm font-medium text-muted",
+                class: "w-16 py-3 text-left text-sm font-medium text-muted",
                 onclick: () => go(screen - 1),
               },
               "上一步",
@@ -75,7 +75,7 @@ export function renderWelcome(root: HTMLElement): void {
         ),
         h(
           "button",
-          { type: "button", class: "w-16 py-2 text-right text-sm font-medium text-muted", onclick: () => finish("#/") },
+          { type: "button", class: "w-16 py-3 text-right text-sm font-medium text-muted", onclick: () => finish("#/") },
           "略過",
         ),
       ),

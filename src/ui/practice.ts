@@ -1,5 +1,5 @@
 import { LESSONS } from "../content/course";
-import { answeredToday, currentDue, currentNextDue, currentStats, localDay, type Stats } from "../learn/memory";
+import { answeredToday, currentDeferred, currentDue, currentNextDue, currentStats, localDay, type Stats } from "../learn/memory";
 import { progress } from "../state";
 import { BUTTON, type Child, fill, h, icon, LABEL } from "./dom";
 import { SESSION_SIZE } from "./review";
@@ -27,7 +27,7 @@ export function renderPractice(main: HTMLElement): void {
     h(
       "details",
       { class: "mt-6 rounded-2xl bg-card p-4 text-sm leading-relaxed ring-1 ring-hair" },
-      h("summary", { class: "cursor-pointer font-semibold" }, "為什麼要每天複習？"),
+      h("summary", { class: "cursor-pointer py-2.5 font-semibold" }, "為什麼要每天複習？"),
       h(
         "p",
         { class: "mt-2 text-ink/80" },
@@ -71,6 +71,7 @@ function drillsCard(): HTMLElement {
 
 function todayCard(learned: number): HTMLElement {
   const due = currentDue().length;
+  const deferred = currentDeferred();
   const card = (...children: Child[]) =>
     h("section", { class: "mt-5 rounded-2xl bg-card p-5 shadow-sm ring-1 ring-hair" }, ...children);
 
@@ -93,6 +94,12 @@ function todayCard(learned: number): HTMLElement {
         h("span", { class: "text-lg font-semibold" }, "張"),
         h("span", { class: "text-sm text-muted" }, sessionLabel(due)),
       ),
+      deferred > 0 &&
+        h(
+          "p",
+          { class: "mt-2 text-sm leading-relaxed text-muted" },
+          `另外有 ${deferred} 張累積的卡片，會分到接下來幾天，一天不用做太多。`,
+        ),
       h("a", { href: "#/review", class: `${BUTTON.primary} mt-4` }, icon("repeat", "h-4 w-4"), "開始複習"),
     );
   }

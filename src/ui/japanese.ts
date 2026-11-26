@@ -102,7 +102,7 @@ export function hush(): void {
 }
 
 const SPEAK_SIZES = {
-  sm: ["h-9 w-9", "h-4 w-4"],
+  sm: ["hit h-9 w-9", "h-4 w-4"],
   md: ["h-11 w-11", "h-5 w-5"],
   lg: ["h-16 w-16", "h-7 w-7"],
 } as const;

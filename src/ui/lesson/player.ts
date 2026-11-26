@@ -13,6 +13,7 @@ import { BUTTON, fill, focusHeading, h, icon, LABEL } from "../dom";
 import { runDrill } from "../drill";
 import { hush } from "../japanese";
 import { focusLayout, resultView, skippedView, stars } from "../layout";
+import { guardLeave } from "../leave-guard";
 import { listeningOff } from "../pause";
 import { onSwipe } from "../swipe";
 import { lessonSteps } from "./steps";
@@ -55,14 +56,20 @@ export function renderLesson(root: HTMLElement, lesson: Lesson): void {
     leaveStep = undefined;
   }
 
+  // Learning steps are kept: coming back lands on the same card. The quiz is not.
+  const mayLeaveQuiz = () => phase !== "quiz" || window.confirm("要離開測驗嗎？下次會從測驗開始。");
+  const release = guardLeave(mayLeaveQuiz);
   const { main, footer, setProgress } = focusLayout(root, () => {
-    // Learning steps are kept: coming back lands on the same card. The quiz is not.
-    if (phase === "quiz" && !window.confirm("要離開測驗嗎？下次會從測驗開始。")) return;
+    if (!mayLeaveQuiz()) return;
+    release();
     leave();
     location.hash = "#/";
   });
+  const here = location.href;
   // Leaving with the browser's back gesture never reaches the close button.
   const onLeavePage = (): void => {
+    // The quiz's guard kept the learner here: nothing to clean up.
+    if (location.href === here) return;
     leave();
     window.removeEventListener("hashchange", onLeavePage);
   };

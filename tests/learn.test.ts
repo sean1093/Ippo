@@ -3,12 +3,14 @@ import { LESSONS } from "../src/content/course";
 import { CARDS, type Card, lessonCards } from "../src/learn/cards";
 import {
   computeStats,
+  DAILY_LIMIT,
   dueIds,
   introduceCards,
   localDay,
   type MemoryData,
   parseMemoryData,
   recordAnswer,
+  todaysQueue,
 } from "../src/learn/memory";
 import { reviewQuestions, stageOf } from "../src/learn/review";
 import { schedule } from "../src/learn/scheduler";
@@ -51,6 +53,49 @@ describe("schedule", () => {
   it("does not raise the level for a retake minutes later", () => {
     const one = schedule(undefined, "good", T0);
     expect(schedule(one, "good", new Date(T0.getTime() + 10 * 6e4)).level).toBe(1);
+  });
+});
+
+describe("todaysQueue (the daily limit)", () => {
+  /** `count` cards, all learnt at T0 and due by day 10; card i was last answered i hours later, so later ones are fresher. */
+  function backlog(count: number): { data: MemoryData; catalog: Map<string, Card> } {
+    const data = empty();
+    const catalog = new Map<string, Card>();
+    for (let i = 0; i < count; i++) {
+      const id = `c${i}`;
+      catalog.set(id, card(id));
+      recordAnswer(data, id, "good", "pick", at(0, i));
+    }
+    return { data, catalog };
+  }
+
+  it("asks for everything due while it fits", () => {
+    const { data, catalog } = backlog(20);
+    expect(todaysQueue(data, at(30), catalog)).toEqual(dueIds(data, at(30), catalog));
+  });
+
+  it("caps a backlog after a break, closest to forgotten first", () => {
+    const { data, catalog } = backlog(140);
+    const queue = todaysQueue(data, at(30), catalog);
+    expect(queue).toHaveLength(DAILY_LIMIT);
+    // The oldest answers have faded most.
+    expect(queue).toContain("c0");
+    expect(queue).not.toContain("c139");
+  });
+
+  it("counts today's reviews against the limit, but not lesson answers to cards that weren't due", () => {
+    const { data, catalog } = backlog(140);
+    const now = at(30);
+    for (const id of todaysQueue(data, now, catalog).slice(0, 30)) recordAnswer(data, id, "good", "pick", now);
+    expect(todaysQueue(data, now, catalog)).toHaveLength(DAILY_LIMIT - 30);
+    // A lesson teaches new cards: those answers are not reviews.
+    for (let i = 0; i < 20; i++) {
+      catalog.set(`new${i}`, card(`new${i}`));
+      recordAnswer(data, `new${i}`, "good", "pick", now);
+    }
+    expect(todaysQueue(data, now, catalog)).toHaveLength(DAILY_LIMIT - 30);
+    // The next study day starts afresh.
+    expect(todaysQueue(data, at(31), catalog)).toHaveLength(DAILY_LIMIT);
   });
 });
 

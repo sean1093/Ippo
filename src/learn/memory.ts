@@ -2,6 +2,7 @@ import { kanaCardId } from "../content/kana-progression";
 import type { Lesson } from "../content/types";
 import { asRecord, defineStore } from "../lib/store";
 import { type Card, CARDS, lessonCards } from "./cards";
+import { nextDayStart, studyDay } from "./day";
 import { enrol, type Grade, type Memory, recallProbability, schedule } from "./scheduler";
 
 /** One answer, kept only as long as the delayed-recall statistic looks back. */
@@ -11,6 +12,8 @@ export interface ReviewEvent {
   grade: Grade;
   /** Days since the card's previous review; null on its first. */
   gap: number | null;
+  /** Set when the card was due: the answer counts toward the day's review limit. */
+  due?: true;
 }
 
 export interface MemoryData {
@@ -72,7 +75,9 @@ export function parseMemoryData(data: unknown): MemoryData {
     const grade = asGrade(e?.grade);
     if (!e || !isFiniteNumber(e.at) || !grade) return [];
     if (e.gap !== null && !isFiniteNumber(e.gap)) return [];
-    return [{ at: e.at, grade, gap: e.gap as number | null }];
+    const event: ReviewEvent = { at: e.at, grade, gap: e.gap as number | null };
+    if (e.due === true) event.due = true;
+    return [event];
   });
   const days = (Array.isArray(saved.days) ? saved.days : []).filter(
     (day): day is string => typeof day === "string" && /^\d{4}-\d{2}-\d{2}$/.test(day),
@@ -86,17 +91,15 @@ export function localDay(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-/** Midnight at the end of `date`'s local day: anything due before it is due "today". */
-export function endOfDay(date: Date): number {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1).getTime();
-}
 
 /** Applies one answer to `data` in place. */
 export function recordAnswer(data: MemoryData, id: string, grade: Grade, mode: "say" | "pick", now: Date): void {
   const previous = data.cards[id];
   const next = schedule(previous, grade, now);
   data.cards[id] = mode === "say" ? { ...next, said: grade } : next;
-  data.log.push({ at: now.getTime(), grade, gap: previous ? (now.getTime() - previous.last) / DAY : null });
+  const event: ReviewEvent = { at: now.getTime(), grade, gap: previous ? (now.getTime() - previous.last) / DAY : null };
+  if (previous && previous.due < nextDayStart(now)) event.due = true;
+  data.log.push(event);
   const since = now.getTime() - (LOG_DAYS + 1) * DAY;
   const stale = data.log.findIndex((event) => event.at >= since);
   data.log.splice(0, stale === -1 ? data.log.length : stale);
@@ -116,11 +119,40 @@ export function introduceCards(data: MemoryData, ids: Iterable<string>, at: Date
 
 /** Known ids due by the end of today, most overdue first. */
 export function dueIds(data: MemoryData, now: Date, catalog: Catalog): string[] {
-  const limit = endOfDay(now);
+  const limit = nextDayStart(now);
   return Object.entries(data.cards)
     .filter(([id, memory]) => memory.due < limit && catalog.has(id))
     .sort(([, a], [, b]) => a.due - b.due)
     .map(([id]) => id);
+}
+
+/**
+ * Reviews asked for in one study day: about 10–15 minutes. After a break the
+ * backlog would otherwise greet the learner as "140 cards today", which is
+ * the moment people stop; the rest waits for the following days instead.
+ */
+export const DAILY_LIMIT = 50;
+
+/**
+ * Today's review queue: the due cards, oldest first, while today's reviews
+ * stay within `limit`. Over it, the cards closest to being forgotten go
+ * first and the rest move to the next days. Lesson answers to cards that
+ * weren't due don't count against the limit.
+ */
+export function todaysQueue(data: MemoryData, now: Date, catalog: Catalog, limit = DAILY_LIMIT): string[] {
+  const due = dueIds(data, now, catalog);
+  const today = studyDay(now);
+  const done = data.log.filter((event) => event.due && studyDay(new Date(event.at)) === today).length;
+  const room = Math.max(0, limit - done);
+  if (due.length <= room) return due;
+  const urgent = new Set(
+    due
+      .map((id) => [id, recallProbability(data.cards[id]!, now)] as const)
+      .sort(([, a], [, b]) => a - b)
+      .slice(0, room)
+      .map(([id]) => id),
+  );
+  return due.filter((id) => urgent.has(id));
 }
 
 /** The next day after today that has cards due. */
@@ -130,13 +162,13 @@ export interface NextDue {
 }
 
 export function nextDue(data: MemoryData, now: Date, catalog: Catalog): NextDue | null {
-  const today = endOfDay(now);
+  const today = nextDayStart(now);
   const later = Object.entries(data.cards)
     .filter(([id, memory]) => memory.due >= today && catalog.has(id))
     .map(([, memory]) => memory.due);
   if (later.length === 0) return null;
   const first = new Date(Math.min(...later));
-  const end = endOfDay(first);
+  const end = nextDayStart(first);
   return { day: first, count: later.filter((due) => due < end).length };
 }
 
@@ -165,7 +197,7 @@ export function pickMixIns(
   count: number,
 ): string[] {
   if (count <= 0) return [];
-  const limit = endOfDay(now);
+  const limit = nextDayStart(now);
   const due: [string, number][] = [];
   const fading: [string, number][] = [];
   for (const [id, memory] of Object.entries(data.cards)) {
@@ -220,9 +252,9 @@ export function computeStats(data: MemoryData, catalog: Catalog, now: Date): Sta
 
   const days = new Set(data.days);
   const cursor = new Date(now);
-  if (!days.has(localDay(cursor))) cursor.setDate(cursor.getDate() - 1);
+  if (!days.has(studyDay(cursor))) cursor.setDate(cursor.getDate() - 1);
   let streak = 0;
-  while (days.has(localDay(cursor))) {
+  while (days.has(studyDay(cursor))) {
     streak += 1;
     cursor.setDate(cursor.getDate() - 1);
   }
@@ -274,7 +306,7 @@ export function introduce(ids: Iterable<string>, at = new Date()): void {
  */
 export function studied(now = new Date()): void {
   memory = store.latest(memory);
-  const day = localDay(new Date(sessionStart(memory.log, now.getTime())));
+  const day = studyDay(new Date(sessionStart(memory.log, now.getTime())));
   if (memory.days.includes(day)) return;
   memory.days.push(day);
   memory.days.sort();
@@ -299,12 +331,18 @@ function sessionStart(log: readonly ReviewEvent[], end: number): number {
 
 /** Whether any card was answered today. */
 export function answeredToday(now = new Date()): boolean {
-  const today = localDay(now);
-  return memory.log.some((event) => localDay(new Date(event.at)) === today);
+  const today = studyDay(now);
+  return memory.log.some((event) => studyDay(new Date(event.at)) === today);
 }
 
+/** Today's review queue (see `todaysQueue`). */
 export function currentDue(now = new Date()): string[] {
-  return dueIds(memory, now, CARDS);
+  return todaysQueue(memory, now, CARDS);
+}
+
+/** Cards due but left for later days by the daily limit. */
+export function currentDeferred(now = new Date()): number {
+  return dueIds(memory, now, CARDS).length - currentDue(now).length;
 }
 
 export function currentNextDue(now = new Date()): NextDue | null {
