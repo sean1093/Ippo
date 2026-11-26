@@ -1,3 +1,4 @@
+import { confusables } from "../content/confusables";
 import { kanaCardId } from "../content/kana-progression";
 import type { Exercise, Jp, Lesson } from "../content/types";
 import { plain, readings, tiles } from "../lib/jp";
@@ -237,6 +238,22 @@ export function lessonQuestions(
  * `pool`. Each one carries that kana's card id, and every cell of the chart —
  * both scripts, 拗音 included — is a card, so all chart practice is tracked.
  */
+/**
+ * Wrong-option candidates for `kana` from `pool`: up to `CONFUSABLE_SHARE` of
+ * the kana it is easily mixed up with (シ for ツ, が for か), then the rest at random.
+ */
+export function kanaCandidates(kana: string, pool: readonly string[], rng: Rng): string[] {
+  const inPool = new Set(pool);
+  const alike = shuffle(
+    confusables(kana).filter((other) => inPool.has(other)),
+    rng,
+  ).slice(0, CONFUSABLE_SHARE);
+  return [...alike, ...shuffle(pool, rng)];
+}
+
+/** Of three wrong options, how many may be look- or sound-alikes; the third keeps a plain miss possible. */
+const CONFUSABLE_SHARE = 2;
+
 export function kanaQuestions(pool: readonly string[], count: number, rng: Rng = Math.random, ask: Ask = {}): Question[] {
   return shuffle(pool, rng)
     .slice(0, count)
@@ -245,7 +262,7 @@ export function kanaQuestions(pool: readonly string[], count: number, rng: Rng =
       // じ/ぢ and ず/づ share a sound: never offer both.
       const sounds = new Set([sound]);
       const others: string[] = [];
-      for (const other of shuffle(pool, rng)) {
+      for (const other of kanaCandidates(kana, pool, rng)) {
         const otherSound = kanaToRomaji(other);
         if (sounds.has(otherSound)) continue;
         sounds.add(otherSound);

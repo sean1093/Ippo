@@ -119,3 +119,43 @@ describe("review distractors", async () => {
     expect(clashes).toEqual([]);
   });
 });
+
+describe("kana distractors", async () => {
+  const { confusables } = await import("../src/content/confusables");
+  const { kanaCandidates } = await import("../src/quiz/questions");
+  const { CARDS } = await import("../src/learn/cards");
+  const { reviewQuestion } = await import("../src/learn/review");
+  const { kanaCardId } = await import("../src/content/kana-progression");
+
+  it("knows the classic mix-ups and the voiced partners", () => {
+    expect(confusables("シ")).toContain("ツ");
+    expect(confusables("ね")).toEqual(expect.arrayContaining(["れ", "わ"]));
+    expect(confusables("か")).toContain("が");
+    expect(confusables("は")).toEqual(expect.arrayContaining(["ば", "ぱ"]));
+    expect(confusables("し")).toContain("じ");
+    // ぢ is read as じ: offering it would test spelling.
+    expect(confusables("ち")).not.toContain("ぢ");
+    expect(confusables("きゃ")).toEqual([]);
+  });
+
+  it("offers a look-alike first in the kana quiz, at most two", () => {
+    const pool = KANA_SECTIONS.flatMap((section) => section.rows.flat()).filter((k): k is string => k !== null);
+    for (let seed = 1; seed <= 5; seed++) {
+      const candidates = kanaCandidates("ね", pool, seeded(seed));
+      const alike = confusables("ね");
+      expect(candidates.slice(0, 2).every((kana) => alike.includes(kana))).toBe(true);
+    }
+  });
+
+  it("puts a look-alike among the options in daily review", () => {
+    const tsu = CARDS.get(kanaCardId("ツ"));
+    expect(tsu).toBeDefined();
+    for (let seed = 1; seed <= 5; seed++) {
+      const question = reviewQuestion(tsu!, undefined, CARDS.values(), seeded(seed));
+      expect(question?.kind).toBe("mc");
+      if (question?.kind !== "mc") continue;
+      const options = question.options.map((option) => ("text" in option ? option.text : option.jp));
+      expect(options).toContain("shi");
+    }
+  });
+});
