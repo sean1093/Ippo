@@ -75,6 +75,7 @@ src/
 
 ### 新增頁面或分頁
 - 頁面：在 `src/main.ts` 的 `PAGES` 加一筆。網址是 `#/<名稱>/<參數…>`；有 `tab` 的頁面會套用底部分頁列。
+- 不想讓使用者隨手離開的頁面（例如課程測驗）用 `src/ui/leave-guard.ts` 的 `guardLeave(mayLeave)`：瀏覽器的返回手勢也會先問 `mayLeave()`，選擇留下時路由把網址放回去、不重畫頁面，畫面狀態都還在。換頁時路由會清掉舊頁的 guard。
 - 分頁：在 `src/ui/layout.ts` 的 `TABS` 加一筆，並擴充 `Tab` 型別。同一個分頁可以有好幾個頁面（「我的」底下有 `#/me`、`#/phrasebook`、`#/settings`），分頁列會一起亮起來。
 
 ### 新增要保存的資料

@@ -14,6 +14,7 @@ import { hush } from "./ui/japanese";
 import { renderKana, renderKanaQuiz } from "./ui/kana";
 import { renderKanji, renderKanjiQuiz } from "./ui/kanji";
 import { type Tab, tabLayout } from "./ui/layout";
+import { clearGuard, mayLeave } from "./ui/leave-guard";
 import { renderLesson } from "./ui/lesson/player";
 import { renderIntroDrill, renderMe } from "./ui/me";
 import { renderPairs, renderPairsQuiz } from "./ui/pairs";
@@ -73,7 +74,17 @@ const TITLE = document.title;
 /** The first render is the page the learner opened: moving focus there would be noise. */
 let routed = false;
 
+/** The address of the page on screen, to go back to when its guard keeps the learner there. */
+let shown = location.href;
+
 function route(): void {
+  if (routed && location.href !== shown && !mayLeave()) {
+    // Stay: put the address back without a hashchange, so the page keeps its state.
+    history.pushState(null, "", shown);
+    return;
+  }
+  clearGuard();
+  shown = location.href;
   hush();
   window.scrollTo(0, 0);
   const [name = "", ...args] = location.hash.replace(/^#\/?/, "").split("/");

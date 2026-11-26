@@ -74,3 +74,26 @@ test("leaving the quiz asks first", async ({ page }) => {
   await page.getByRole("button", { name: "離開" }).click();
   await expect(page).toHaveURL(/#\/$/);
 });
+
+test("the back gesture in a lesson quiz asks first, and staying keeps the question", async ({ page }) => {
+  await page.goto("./");
+  await page.getByRole("link", { name: "第 3 課 打招呼" }).click();
+  await page.getByRole("button", { name: "直接做測驗" }).click();
+  const question = page.locator("main h2").first();
+  await expect(question).toBeVisible();
+  const asked = await page.locator("main").textContent();
+
+  // Stay.
+  page.once("dialog", (dialog) => {
+    expect(dialog.message()).toContain("要離開測驗嗎");
+    void dialog.dismiss();
+  });
+  await page.goBack();
+  await expect(page).toHaveURL(/#\/lesson\/greetings$/);
+  expect(await page.locator("main").textContent()).toBe(asked);
+
+  // Leave.
+  page.once("dialog", (dialog) => void dialog.accept());
+  await page.goBack();
+  await expect(page.getByRole("link", { name: "第 3 課 打招呼" })).toBeVisible();
+});
