@@ -38,7 +38,7 @@ export function renderKana(main: HTMLElement, script: Script): void {
       {
         href: `#/kana/${id}`,
         class: `flex-1 rounded-lg py-2 text-center text-sm font-semibold transition ${
-          id === script ? "bg-card text-ink shadow-sm" : "text-muted"
+          id === script ? "bg-card text-ink shadow-sm" : "text-ink/75"
         }`,
         "aria-current": id === script && "page",
       },

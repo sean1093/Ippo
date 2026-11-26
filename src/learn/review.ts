@@ -19,8 +19,8 @@ export function stageOf(card: Card, memory: Memory | undefined): Stage {
  * One question reviewing `card`, as hard as its memory allows. Each card kind
  * asks in its own way; a new kind adds a case here (the compiler insists).
  * Returns null when the card cannot be asked at all right now: with listening
- * off a kana is either read — which is its easiest stage — or heard, so it
- * waits for a session the learner can hear.
+ * off a kana past its reading stage can only be heard, so it waits for a
+ * session the learner can hear. A kana still at that stage is read as usual.
  */
 export function reviewQuestion(
   card: Card,
@@ -33,8 +33,10 @@ export function reviewQuestion(
     case "word":
     case "sentence":
       return meaningQuestion(card, stageOf(card, memory), pool, rng, ask);
-    case "kana":
-      return ask.listening === false ? null : kanaQuestion(card, stageOf(card, memory), pool, rng);
+    case "kana": {
+      const stage = stageOf(card, memory);
+      return ask.listening === false && stage !== "recognize" ? null : kanaQuestion(card, stage, pool, rng);
+    }
     case "kanji":
       return kanjiQuestion(card, stageOf(card, memory), rng, ask);
     default: {
@@ -90,19 +92,25 @@ function kanaQuestion(card: Card, stage: Stage, pool: Iterable<Card>, rng: Rng):
 }
 
 /**
- * A review session over `ids` in mixed order (lessons interleaved). Ids that
+ * A review session over the first `limit` askable cards of `ids` (callers
+ * pass them most urgent first), in mixed order (lessons interleaved). Ids that
  * no longer exist in the course — removed or edited content — are skipped, and
- * so are the cards that cannot be asked right now; they stay due.
+ * so are the cards that cannot be asked right now; they stay due, and the
+ * next ones fill their places so a session is never shorter than it can be.
  */
 export function reviewQuestions(
   ids: readonly string[],
   memoryOf: (id: string) => Memory | undefined,
   rng: Rng = Math.random,
   ask: Ask = {},
+  limit = Infinity,
 ): Question[] {
-  return shuffle(ids, rng).flatMap((id) => {
+  const questions: Question[] = [];
+  for (const id of ids) {
+    if (questions.length >= limit) break;
     const card = CARDS.get(id);
     const question = card ? reviewQuestion(card, memoryOf(id), CARDS.values(), rng, ask) : null;
-    return question ? [question] : [];
-  });
+    if (question) questions.push(question);
+  }
+  return shuffle(questions, rng);
 }

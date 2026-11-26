@@ -139,7 +139,7 @@ function renderTrial(
     voice: voices.length === 0 ? undefined : voices[Math.floor(Math.random() * voices.length)],
   };
   const target = trial.pair[trial.target];
-  const player = speakButton(target.jp, "lg", options);
+  const player = speakButton(target.jp, "lg", options, "播放題目");
   const choices = h("div", { class: "mt-8 grid gap-3" });
   let done = false;
 

@@ -143,15 +143,31 @@ describe("listening off", () => {
     }
   });
 
-  it("leaves kana cards out of the review session; they stay due", () => {
+  it("leaves kana cards past their reading stage out of the review session; they stay due", () => {
     const kana = kanaCardId(KANA_SECTIONS[0]!.rows[0]![0]!);
     const word = LESSONS[2]!.words[0]!.jp;
     expect(CARDS.get(kana)?.kind).toBe("kana");
     const ids = [kana, word];
-    expect(reviewQuestions(ids, () => undefined, seeded(1), off).map((q) => q.card)).toEqual([word]);
+    expect(reviewQuestions(ids, () => LISTENING_LEVEL, seeded(1), off).map((q) => q.card)).toEqual([word]);
     // Nothing is consumed: with listening on the same card is asked as usual.
-    expect(reviewQuestions(ids, () => undefined, seeded(1)).map((q) => q.card).sort()).toEqual([kana, word].sort());
+    expect(reviewQuestions(ids, () => LISTENING_LEVEL, seeded(1)).map((q) => q.card).sort()).toEqual([kana, word].sort());
     expect(reviewQuestion(CARDS.get(kana)!, LISTENING_LEVEL, CARDS.values(), seeded(1), off)).toBeNull();
+  });
+
+  it("still asks a new kana by sight: reading it needs no sound", () => {
+    const kana = kanaCardId(KANA_SECTIONS[0]!.rows[0]![0]!);
+    const question = reviewQuestion(CARDS.get(kana)!, undefined, CARDS.values(), seeded(1), off);
+    expect(question).not.toBeNull();
+    expect(heard([question!])).toEqual([]);
+  });
+
+  it("fills a session past the cards it cannot ask, instead of coming up short", () => {
+    const kana = KANA_SECTIONS[0]!.rows.flat().filter((k): k is string => k !== null).map(kanaCardId);
+    const words = LESSONS[2]!.words.map((w) => w.jp).slice(0, 5);
+    const memory = (id: string) => (id.startsWith("kana:") || CARDS.get(id)?.kind === "kana" ? LISTENING_LEVEL : undefined);
+    const questions = reviewQuestions([...kana, ...words], memory, seeded(1), off, 3);
+    expect(questions).toHaveLength(3);
+    expect(questions.every((q) => words.includes(q.card!))).toBe(true);
   });
 });
 

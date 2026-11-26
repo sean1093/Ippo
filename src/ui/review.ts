@@ -16,9 +16,27 @@ const EXTRA_SIZE = 10;
  */
 export function renderReview(root: HTMLElement): void {
   const due = currentDue();
-  const ids = due.length > 0 ? due.slice(0, SESSION_SIZE) : currentWeakest(EXTRA_SIZE);
-  const questions = reviewQuestions(ids, memoryOf, Math.random, { listening: !listeningOff() });
+  const ask = { listening: !listeningOff() };
+  const questions =
+    due.length > 0
+      ? reviewQuestions(due, memoryOf, Math.random, ask, SESSION_SIZE)
+      : reviewQuestions(currentWeakest(EXTRA_SIZE), memoryOf, Math.random, ask);
   if (questions.length === 0) {
+    // Everything due has to be heard, and listening is paused: say so rather than bounce back.
+    if (due.length > 0) {
+      fill(
+        root,
+        h(
+          "div",
+          { class: "flex min-h-dvh flex-col items-center justify-center px-6 text-center" },
+          h("h1", { class: "text-2xl font-bold" }, "這些卡片要用聽的"),
+          h("p", { class: "mt-3 max-w-xs leading-relaxed text-ink/80" }, `今天的 ${due.length} 張都是聽力題。方便聽聲音的時候再回來複習。`),
+          h("a", { href: "#/practice", class: `${BUTTON.primary} mt-8` }, "回到練習"),
+        ),
+      );
+      focusHeading(root);
+      return;
+    }
     location.replace("#/practice");
     return;
   }
@@ -39,14 +57,14 @@ export function renderReview(root: HTMLElement): void {
       finished = true;
       if (answered > 0) studied();
       window.scrollTo(0, 0);
-      const left = currentDue().length;
+      const left = reviewQuestions(currentDue(), memoryOf, Math.random, ask, SESSION_SIZE).length;
       main.replaceChildren(
         answered > 0 ? resultView("複習完成！", `複習了 ${answered} 張卡片`, score) : skippedView("每日複習"),
       );
       fill(
         footer,
         left > 0
-          ? h("a", { href: "#/review", class: BUTTON.primary, onclick: reload }, icon("repeat", "h-4 w-4"), `再複習 ${Math.min(left, SESSION_SIZE)} 張`)
+          ? h("a", { href: "#/review", class: BUTTON.primary, onclick: reload }, icon("repeat", "h-4 w-4"), `再複習 ${left} 張`)
           : h("a", { href: "#/practice", class: BUTTON.primary }, "回到練習"),
         left > 0 && h("a", { href: "#/practice", class: `${BUTTON.quiet} mt-1` }, "先休息一下"),
       );

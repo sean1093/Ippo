@@ -31,7 +31,7 @@ export function dialogueStep(dialogue: Dialogue): StepView {
   let shown = -1;
 
   const tabs = MODES.map((mode, i) =>
-    h("button", { type: "button", class: TAB, onclick: () => show(i) }, mode.label),
+    h("button", { type: "button", class: TAB, "aria-pressed": "false", onclick: () => show(i) }, mode.label),
   );
 
   function show(i: number): void {
@@ -40,7 +40,10 @@ export function dialogueStep(dialogue: Dialogue): StepView {
     shown = i;
     current?.onLeave?.();
     hush();
-    tabs.forEach((tab, n) => (tab.className = `${TAB} ${n === i ? "bg-ai text-on-accent shadow-sm" : "text-muted"}`));
+    tabs.forEach((tab, n) => {
+      tab.className = `${TAB} ${n === i ? "bg-ai text-on-accent shadow-sm" : "text-muted"}`;
+      tab.setAttribute("aria-pressed", String(n === i));
+    });
     current = mode.build(dialogue);
     fill(body, current.el);
   }
@@ -50,7 +53,7 @@ export function dialogueStep(dialogue: Dialogue): StepView {
     el: h(
       "div",
       null,
-      h("p", { class: LABEL }, "情境會話"),
+      h("h2", { class: LABEL }, "情境會話"),
       h("p", { class: "mt-1 flex items-center gap-1.5 text-lg font-bold" }, icon("pin", "h-5 w-5 text-shu"), dialogue.scene),
       // Four tabs in one row: a sideways drag across them is a mis-tap, not a page turn.
       h("div", { class: "mt-3 grid grid-cols-4 gap-1 rounded-full bg-card p-1 ring-1 ring-hair", "data-no-swipe": true }, tabs),

@@ -76,7 +76,12 @@ export function renderChallenge(root: HTMLElement, unit: Unit): void {
       footer,
       onProgress: (cleared, left) => setProgress(cleared / Math.max(1, left)),
       onFirstAnswer: (question, outcome) => {
-        if (question.card) answer(question.card, outcome.grade, question.kind === "recall" ? "say" : "pick");
+        // Only cards a lesson has already taught: a challenge taken early must
+        // not put untaught lines into daily review, or let a lucky guess
+        // schedule a card the lesson would later introduce properly.
+        if (question.card && memoryOf(question.card)) {
+          answer(question.card, outcome.grade, question.kind === "recall" ? "say" : "pick");
+        }
       },
       onFinish: finish,
     });

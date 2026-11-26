@@ -49,6 +49,13 @@ export function renderOrder(q: Order, surface: Surface, answered: Answered): voi
     );
     bank.forEach((button, i) => button.classList.toggle("invisible", chosen.includes(i)));
     check.disabled = chosen.length === 0;
+    // The tile just tapped was hidden or rebuilt, which drops focus to the page:
+    // keep a keyboard or switch user in the exercise, on the next tile or 檢查.
+    const focused = document.activeElement;
+    if (!focused || focused === document.body || focused.classList.contains("invisible")) {
+      const next = bank.find((_, i) => !chosen.includes(i)) ?? (check.disabled ? null : check);
+      next?.focus({ preventScroll: true });
+    }
   }
 
   function submit(): void {

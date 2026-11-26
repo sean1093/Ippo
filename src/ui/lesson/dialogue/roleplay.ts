@@ -4,7 +4,7 @@ import type { Grade } from "../../../learn/scheduler";
 import { readings } from "../../../lib/jp";
 import { canRecognize, type ListenError, recognize, stopListening } from "../../../lib/listen";
 import { judgeSpeech, type Verdict } from "../../../lib/match";
-import { BUTTON, fill, h, icon, LABEL } from "../../dom";
+import { announce, BUTTON, fill, h, icon, LABEL } from "../../dom";
 import { hush, jpText, play, speakButton } from "../../japanese";
 import { pauseRow, speakingOff } from "../../pause";
 import { withMicNotice } from "./mic";
@@ -12,7 +12,7 @@ import { bubbleRow, type DialogueMode, pill, type Row } from "./shared";
 
 const GRADES: { grade: Grade; label: string; class: string }[] = [
   { grade: "again", label: "不會", class: `${BUTTON.secondary} text-ng` },
-  { grade: "hard", label: "差一點", class: BUTTON.secondary },
+  { grade: "hard", label: "想了一下", class: BUTTON.secondary },
   { grade: "good", label: "會", class: BUTTON.ok },
 ];
 
@@ -193,6 +193,7 @@ export function roleplayMode(dialogue: Dialogue): DialogueMode {
 
     function afterHeard(verdict: Verdict, heard: string): void {
       const look = VERDICTS[verdict];
+      announce(`${look.text} 聽到：「${heard}」`);
       fill(
         feedback,
         h(
@@ -202,21 +203,22 @@ export function roleplayMode(dialogue: Dialogue): DialogueMode {
           h("p", { class: "mt-1 text-sm text-ink/70" }, `聽到：「${heard}」`),
         ),
       );
+      const onward = h(
+        "button",
+        {
+          type: "button",
+          class: BUTTON.primary,
+          onclick: () => {
+            stopAttempt();
+            next(line);
+          },
+        },
+        "下一句",
+        icon("next"),
+      );
       fill(
         actions,
-        h(
-          "button",
-          {
-            type: "button",
-            class: BUTTON.primary,
-            onclick: () => {
-              stopAttempt();
-              next(line);
-            },
-          },
-          "下一句",
-          icon("next"),
-        ),
+        onward,
         h(
           "div",
           { class: "grid grid-cols-2 gap-2" },
@@ -224,6 +226,8 @@ export function roleplayMode(dialogue: Dialogue): DialogueMode {
           h("button", { type: "button", class: BUTTON.secondary, onclick: () => reveal(selfGrade) }, "看答案"),
         ),
       );
+      // The 說說看 button that had focus is gone: keep the learner's place on the way forward.
+      onward.focus({ preventScroll: true });
     }
 
     function listen(button: HTMLButtonElement): void {
@@ -242,6 +246,7 @@ export function roleplayMode(dialogue: Dialogue): DialogueMode {
           // "network" is the phone losing signal for one attempt, not a device that cannot listen.
           if (heard.error !== "no-speech" && heard.error !== "network") micBlocked = true;
           fill(feedback, h("p", { class: "rounded-2xl bg-shu-soft px-4 py-3 text-center text-sm" }, EXCUSES[heard.error]));
+          announce(EXCUSES[heard.error]);
           ask(true);
           return;
         }

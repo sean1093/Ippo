@@ -95,3 +95,27 @@ describe("kanaQuestions", () => {
     }
   });
 });
+
+describe("review distractors", async () => {
+  const { CARDS } = await import("../src/learn/cards");
+  const { meaningQuestion } = await import("../src/learn/review");
+  const norm = (zh: string) => zh.replace(/[\s。、，,.!?！？「」『』…~～]/g, "");
+
+  it("never offers an option that merely wraps another (這是什麼？ / 不好意思，這是什麼？)", () => {
+    const clashes: string[] = [];
+    for (const card of CARDS.values()) {
+      if (card.kind !== "word" && card.kind !== "sentence") continue;
+      for (let seed = 1; seed <= 5; seed++) {
+        const question = meaningQuestion(card, "recognize", CARDS.values(), seeded(seed));
+        if (question.kind !== "mc") continue;
+        const options = question.options.map((option) => norm("text" in option ? option.text : ""));
+        for (const a of options) {
+          for (const b of options) {
+            if (a !== b && /\p{Script=Han}/u.test(a + b) && a.includes(b)) clashes.push(`${card.id}: ${a} ⊃ ${b}`);
+          }
+        }
+      }
+    }
+    expect(clashes).toEqual([]);
+  });
+});

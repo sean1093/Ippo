@@ -66,13 +66,30 @@ export function readBackup(text: string): Backup {
  * to whatever else is served from this origin and are never touched.
  */
 export function restoreBackup(storage: Storage, backup: Backup): void {
-  const existing: string[] = [];
+  const snapshot = new Map<string, string>();
   for (let i = 0; i < storage.length; i += 1) {
     const key = storage.key(i);
-    if (key !== null && key.startsWith(PREFIX)) existing.push(key);
+    const value = key === null ? null : storage.getItem(key);
+    if (key !== null && value !== null && key.startsWith(PREFIX)) snapshot.set(key, value);
   }
-  for (const key of existing) storage.removeItem(key);
-  for (const [key, value] of Object.entries(backup.stores)) storage.setItem(key, JSON.stringify(value));
+  // All or nothing: a write that fails halfway (storage full, or refusing
+  // writes) must not leave the learner with half a backup and none of their
+  // own record. Write first, then drop the keys the backup doesn't have.
+  try {
+    for (const [key, value] of Object.entries(backup.stores)) storage.setItem(key, JSON.stringify(value));
+  } catch {
+    for (const key of Object.keys(backup.stores)) {
+      try {
+        const old = snapshot.get(key);
+        if (old === undefined) storage.removeItem(key);
+        else storage.setItem(key, old);
+      } catch {
+        // Putting back a value that fit before can only fail if storage is gone entirely.
+      }
+    }
+    throw new Error("裝置的儲存空間不夠或拒絕寫入，沒有匯入；原本的學習紀錄都還在。");
+  }
+  for (const key of snapshot.keys()) if (!(key in backup.stores)) storage.removeItem(key);
 }
 
 /** What the learner is about to overwrite their device with, for the confirm. */

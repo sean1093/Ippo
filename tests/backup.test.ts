@@ -71,6 +71,21 @@ describe("createBackup / restoreBackup", () => {
     expect(storage.getItem("theme.pref")).toBe('"dark"');
   });
 
+  it("keeps the learner's data untouched when a write fails partway", () => {
+    const own = { "ippo.progress": '{"v":1,"data":{"mine":1}}', "ippo.pairs": '{"v":1,"data":{}}' };
+    const storage = fakeStorage(own);
+    const setItem = storage.setItem;
+    let writes = 0;
+    storage.setItem = (key: string, value: string) => {
+      writes += 1;
+      if (writes === 3) throw new DOMException("full", "QuotaExceededError");
+      setItem(key, value);
+    };
+    const backup = readBackup(JSON.stringify(createBackup(fakeStorage(SAVED), NOW)));
+    expect(() => restoreBackup(storage, backup)).toThrow("原本的學習紀錄都還在");
+    expect(dump(storage)).toEqual(own);
+  });
+
   it("skips values that are not JSON, because a restore could not write them back", () => {
     const backup = createBackup(fakeStorage({ "ippo.progress": "{oops", "ippo.settings": "{}" }), NOW);
     expect(Object.keys(backup.stores)).toEqual(["ippo.settings"]);

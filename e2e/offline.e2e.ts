@@ -62,3 +62,37 @@ test("a new build's first load drops the old build's cached assets and keeps wor
   await expect(page.getByRole("link", { name: "第 1 課 日文的聲音" })).toBeVisible();
   await context.setOffline(false);
 });
+
+test("a network that never answers still opens the cached app", async ({ page, context }) => {
+  await page.goto("./");
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+  });
+  await page.reload();
+  await expect.poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null)).toBe(true);
+
+  // A captive portal or station Wi-Fi: the page request hangs instead of failing.
+  await context.route(/\/(index\.html)?(\?.*)?$/, () => new Promise(() => {}));
+  const started = Date.now();
+  await page.reload({ waitUntil: "commit", timeout: 10_000 });
+  await expect(page.getByRole("link", { name: "第 1 課 日文的聲音" })).toBeVisible({ timeout: 10_000 });
+  expect(Date.now() - started).toBeLessThan(8_000);
+  await context.unrouteAll({ behavior: "ignoreErrors" });
+});
+
+test("opening the manifest in the address bar does not replace the offline app", async ({ page, context, errors }) => {
+  await page.goto("./");
+  await page.evaluate(async () => {
+    await navigator.serviceWorker.ready;
+  });
+  await page.reload();
+  await expect.poll(() => page.evaluate(() => navigator.serviceWorker.controller !== null)).toBe(true);
+
+  await page.goto("./manifest.webmanifest", { waitUntil: "networkidle" });
+  // Showing a bare file, the browser asks for /favicon.ico, which the site doesn't have.
+  errors.length = 0;
+  await context.setOffline(true);
+  await page.goto("./");
+  await expect(page.getByRole("link", { name: "第 1 課 日文的聲音" })).toBeVisible();
+  await context.setOffline(false);
+});

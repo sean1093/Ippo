@@ -7,7 +7,7 @@ import type { Answered, Surface } from "./shared";
 
 const GRADES: { grade: Grade; label: string; class: string }[] = [
   { grade: "again", label: "不會", class: `${BUTTON.secondary} text-ng` },
-  { grade: "hard", label: "差一點", class: BUTTON.secondary },
+  { grade: "hard", label: "想了一下", class: BUTTON.secondary },
   { grade: "good", label: "會", class: BUTTON.ok },
 ];
 
@@ -44,6 +44,9 @@ export function renderRecall(q: Recall, surface: Surface, answered: Answered): v
         ),
       ),
     );
+    // 看答案 is gone with the old footer: put focus on the answer it revealed.
+    answer.tabIndex = -1;
+    answer.focus({ preventScroll: true });
     if (shouldAutoplay()) void play(q.jp, speaker);
   }
 

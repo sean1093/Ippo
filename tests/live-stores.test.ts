@@ -94,6 +94,21 @@ describe("live memory", () => {
     expect(memory.currentStats(new Date(2026, 9, 4, 12)).streak).toBe(0);
   });
 
+  it("a session that runs past midnight counts for the day it started", async () => {
+    const memory = await import("../src/learn/memory");
+    memory.studied(new Date(2026, 9, 1, 21));
+    // Started at 23:55 on the 2nd, finished at 00:05 on the 3rd.
+    memory.answer(KNOWN, "good", "pick", new Date(2026, 9, 2, 23, 55));
+    memory.answer(KNOWN, "good", "pick", new Date(2026, 9, 3, 0, 1));
+    memory.studied(new Date(2026, 9, 3, 0, 5));
+    expect((read("memory") as { days: string[] }).days).toEqual(["2026-10-01", "2026-10-02"]);
+    expect(memory.currentStats(new Date(2026, 9, 3, 12)).streak).toBe(2);
+    // A separate sitting later that day still counts for the 3rd.
+    memory.answer(KNOWN, "good", "pick", new Date(2026, 9, 3, 20));
+    memory.studied(new Date(2026, 9, 3, 20, 10));
+    expect(memory.currentStats(new Date(2026, 9, 3, 21)).streak).toBe(3);
+  });
+
   it("resetMemory forgets everything and saves the empty state", async () => {
     const memory = await import("../src/learn/memory");
     memory.answer(KNOWN, "good", "pick", T0);

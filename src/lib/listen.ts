@@ -20,6 +20,7 @@ interface Recognition extends EventTarget {
   onresult: ((event: SpeechRecognitionEvent) => void) | null;
   onerror: ((event: SpeechRecognitionErrorEvent) => void) | null;
   onend: (() => void) | null;
+  onaudiostart: (() => void) | null;
 }
 
 type RecognitionClass = new () => Recognition;
@@ -41,6 +42,11 @@ export type Heard = { alternatives: string[] } | { error: ListenError };
 
 /** A learner who says nothing gets an answer rather than a spinner. */
 const TIMEOUT = 8000;
+/**
+ * Before the microphone opens the learner may be reading a permission prompt
+ * (two of them on iOS); that time must not count as silence.
+ */
+const PERMISSION_TIMEOUT = 30_000;
 
 function asError(code: SpeechRecognitionErrorCode): ListenError {
   switch (code) {
@@ -90,6 +96,7 @@ export function recognize(timeout = TIMEOUT): Promise<Heard> {
     if (settled) return;
     settled = true;
     window.clearTimeout(timer);
+    window.clearTimeout(waiting);
     if (active === recognition) active = null;
     resolve(heard);
   };
@@ -103,10 +110,17 @@ export function recognize(timeout = TIMEOUT): Promise<Heard> {
   // Android Chrome ends silently instead of raising "no-speech" when it hears nothing.
   recognition.onend = () => finish({ error: "no-speech" });
 
-  const timer = window.setTimeout(() => {
+  const giveUp = (): void => {
     recognition.abort();
     finish({ error: "no-speech" });
-  }, timeout);
+  };
+  // The silence timer starts when the microphone does, not at the tap.
+  let timer: number | undefined;
+  const waiting = window.setTimeout(giveUp, Math.max(PERMISSION_TIMEOUT, timeout));
+  recognition.onaudiostart = () => {
+    window.clearTimeout(waiting);
+    if (!settled) timer = window.setTimeout(giveUp, timeout);
+  };
 
   try {
     recognition.start();

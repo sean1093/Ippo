@@ -104,6 +104,14 @@ body {
   display: none;
 }
 
+/* Earned stars: amber that still reads as a graphic (3:1+) on paper and card in each theme. */
+.star-earned {
+  color: #b45309;
+}
+:root[data-theme="dark"] .star-earned {
+  color: #fbbf24;
+}
+
 .blank {
   display: inline-block;
   min-width: 2.5em;
