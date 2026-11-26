@@ -1,4 +1,5 @@
 import { type Card as FsrsCard, createEmptyCard, fsrs, Rating, type State } from "ts-fsrs";
+import { anchor, fromAnchor, studyDay } from "./day";
 
 /** How an answer went: forgot it, got it with effort, or got it. */
 export type Grade = "again" | "hard" | "good";
@@ -33,12 +34,21 @@ const fsrsScheduler = fsrs({ enable_fuzz: false, enable_short_term: false, maxim
 
 const RATING = { again: Rating.Again, hard: Rating.Hard, good: Rating.Good } as const;
 
-/** A success only moves a card up when it comes after a real gap: a retake minutes later proves nothing new. */
-const SPACED_MS = 12 * 36e5;
+/**
+ * Moving up a stage (recognise → listen → say) is a new, harder skill, which
+ * the memory built on the easier one doesn't vouch for: FSRS would otherwise
+ * first ask a learner to say a word about 70 days after learning it. The first
+ * review at the new stage comes within this many days instead.
+ */
+export const NEW_STAGE_DAYS = 4;
+
+/** The stage a level is asked at, as `stageOf` reads it: 0 recognise, 1 listen, 2+ say. */
+const stage = (level: number) => Math.min(level, 2);
 
 function toFsrs(memory: Memory): FsrsCard {
   return {
-    due: new Date(memory.due),
+    // FSRS sees study days, not clock times; see `anchor`.
+    due: anchor(new Date(memory.due)),
     stability: memory.stability,
     difficulty: memory.difficulty,
     elapsed_days: 0,
@@ -47,25 +57,29 @@ function toFsrs(memory: Memory): FsrsCard {
     reps: memory.reps,
     lapses: memory.lapses,
     state: memory.state as State,
-    last_review: new Date(memory.last),
+    last_review: anchor(new Date(memory.last)),
   };
 }
 
 /** The memory after answering `grade` at `now`; `memory` is undefined for a card seen for the first time. */
 export function schedule(memory: Memory | undefined, grade: Grade, now: Date): Memory {
-  const card = fsrsScheduler.next(memory ? toFsrs(memory) : createEmptyCard(now), now, RATING[grade]).card;
+  const today = anchor(now);
+  const card = fsrsScheduler.next(memory ? toFsrs(memory) : createEmptyCard(today), today, RATING[grade]).card;
   const level = memory?.level ?? 0;
-  const spaced = !memory || now.getTime() - memory.last >= SPACED_MS;
+  // A success only moves a card up on a later study day: a retake minutes later proves nothing new.
+  const spaced = !memory || studyDay(now) !== studyDay(new Date(memory.last));
+  const nextLevel = grade === "again" ? Math.max(0, level - 2) : grade === "good" && spaced ? level + 1 : level;
+  const days = stage(nextLevel) > stage(level) ? Math.min(card.scheduled_days, NEW_STAGE_DAYS) : card.scheduled_days;
   return {
-    due: card.due.getTime(),
+    due: fromAnchor(new Date(today.getTime() + days * 864e5)),
     stability: card.stability,
     difficulty: card.difficulty,
     reps: card.reps,
     lapses: card.lapses,
     state: card.state,
-    scheduledDays: card.scheduled_days,
+    scheduledDays: days,
     last: now.getTime(),
-    level: grade === "again" ? Math.max(0, level - 2) : grade === "good" && spaced ? level + 1 : level,
+    level: nextLevel,
     grade,
     said: memory?.said ?? null,
   };
@@ -78,5 +92,5 @@ export function enrol(at: Date): Memory {
 
 /** Estimated chance the card is still remembered at `now`, 0–1. */
 export function recallProbability(memory: Memory, now: Date): number {
-  return fsrsScheduler.get_retrievability(toFsrs(memory), now, false);
+  return fsrsScheduler.get_retrievability(toFsrs(memory), anchor(now), false);
 }

@@ -2,6 +2,7 @@ import { kanaCardId } from "../content/kana-progression";
 import type { Lesson } from "../content/types";
 import { asRecord, defineStore } from "../lib/store";
 import { type Card, CARDS, lessonCards } from "./cards";
+import { nextDayStart, studyDay } from "./day";
 import { enrol, type Grade, type Memory, recallProbability, schedule } from "./scheduler";
 
 /** One answer, kept only as long as the delayed-recall statistic looks back. */
@@ -86,10 +87,6 @@ export function localDay(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-/** Midnight at the end of `date`'s local day: anything due before it is due "today". */
-export function endOfDay(date: Date): number {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1).getTime();
-}
 
 /** Applies one answer to `data` in place. */
 export function recordAnswer(data: MemoryData, id: string, grade: Grade, mode: "say" | "pick", now: Date): void {
@@ -116,7 +113,7 @@ export function introduceCards(data: MemoryData, ids: Iterable<string>, at: Date
 
 /** Known ids due by the end of today, most overdue first. */
 export function dueIds(data: MemoryData, now: Date, catalog: Catalog): string[] {
-  const limit = endOfDay(now);
+  const limit = nextDayStart(now);
   return Object.entries(data.cards)
     .filter(([id, memory]) => memory.due < limit && catalog.has(id))
     .sort(([, a], [, b]) => a.due - b.due)
@@ -130,13 +127,13 @@ export interface NextDue {
 }
 
 export function nextDue(data: MemoryData, now: Date, catalog: Catalog): NextDue | null {
-  const today = endOfDay(now);
+  const today = nextDayStart(now);
   const later = Object.entries(data.cards)
     .filter(([id, memory]) => memory.due >= today && catalog.has(id))
     .map(([, memory]) => memory.due);
   if (later.length === 0) return null;
   const first = new Date(Math.min(...later));
-  const end = endOfDay(first);
+  const end = nextDayStart(first);
   return { day: first, count: later.filter((due) => due < end).length };
 }
 
@@ -165,7 +162,7 @@ export function pickMixIns(
   count: number,
 ): string[] {
   if (count <= 0) return [];
-  const limit = endOfDay(now);
+  const limit = nextDayStart(now);
   const due: [string, number][] = [];
   const fading: [string, number][] = [];
   for (const [id, memory] of Object.entries(data.cards)) {
@@ -220,9 +217,9 @@ export function computeStats(data: MemoryData, catalog: Catalog, now: Date): Sta
 
   const days = new Set(data.days);
   const cursor = new Date(now);
-  if (!days.has(localDay(cursor))) cursor.setDate(cursor.getDate() - 1);
+  if (!days.has(studyDay(cursor))) cursor.setDate(cursor.getDate() - 1);
   let streak = 0;
-  while (days.has(localDay(cursor))) {
+  while (days.has(studyDay(cursor))) {
     streak += 1;
     cursor.setDate(cursor.getDate() - 1);
   }
@@ -274,7 +271,7 @@ export function introduce(ids: Iterable<string>, at = new Date()): void {
  */
 export function studied(now = new Date()): void {
   memory = store.latest(memory);
-  const day = localDay(new Date(sessionStart(memory.log, now.getTime())));
+  const day = studyDay(new Date(sessionStart(memory.log, now.getTime())));
   if (memory.days.includes(day)) return;
   memory.days.push(day);
   memory.days.sort();
@@ -299,8 +296,8 @@ function sessionStart(log: readonly ReviewEvent[], end: number): number {
 
 /** Whether any card was answered today. */
 export function answeredToday(now = new Date()): boolean {
-  const today = localDay(now);
-  return memory.log.some((event) => localDay(new Date(event.at)) === today);
+  const today = studyDay(now);
+  return memory.log.some((event) => studyDay(new Date(event.at)) === today);
 }
 
 export function currentDue(now = new Date()): string[] {
