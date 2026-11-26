@@ -104,6 +104,20 @@ body {
   display: none;
 }
 
+/*
+ * A small control's tap area grows to 44px (WCAG 2.5.5, Apple's minimum)
+ * without changing how it looks: an invisible margin around it takes taps.
+ * Only for controls with room around them; neighbours that touch get taller instead.
+ */
+.hit {
+  position: relative;
+}
+.hit::after {
+  content: "";
+  position: absolute;
+  inset: min(0px, calc((100% - 44px) / 2));
+}
+
 /* Earned stars: amber that still reads as a graphic (3:1+) on paper and card in each theme. */
 .star-earned {
   color: #b45309;

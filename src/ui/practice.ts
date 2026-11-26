@@ -27,7 +27,7 @@ export function renderPractice(main: HTMLElement): void {
     h(
       "details",
       { class: "mt-6 rounded-2xl bg-card p-4 text-sm leading-relaxed ring-1 ring-hair" },
-      h("summary", { class: "cursor-pointer font-semibold" }, "為什麼要每天複習？"),
+      h("summary", { class: "cursor-pointer py-2.5 font-semibold" }, "為什麼要每天複習？"),
       h(
         "p",
         { class: "mt-2 text-ink/80" },
