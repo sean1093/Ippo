@@ -1,15 +1,20 @@
-// The bugs this covers only show where the UTC date changes during the learner's day.
-process.env.TZ = "Asia/Taipei";
-
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { anchor, fromAnchor, nextDayStart, studyDay } from "../src/learn/day";
 import { stageOf } from "../src/learn/review";
 import { type Memory, NEW_STAGE_DAYS, schedule } from "../src/learn/scheduler";
+
+// The bugs this covers only show where the UTC date changes during the learner's day.
+vi.stubEnv("TZ", "Asia/Taipei");
 
 const local = (d: number, h: number, m = 0) => new Date(2026, 9, d, h, m);
 const DAY = 864e5;
 
 describe("study days (4:00 to 4:00)", () => {
+  it("runs in Taiwan time, where the UTC date changes at 08:00", () => {
+    expect(local(2, 7, 30).getUTCDate()).toBe(1);
+    expect(local(2, 8, 30).getUTCDate()).toBe(2);
+  });
+
   it("counts the small hours as the evening before", () => {
     expect(studyDay(local(2, 1, 30))).toBe("2026-10-01");
     expect(studyDay(local(2, 4))).toBe("2026-10-02");
